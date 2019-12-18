@@ -19,11 +19,11 @@ interests:
 - Artificial Intelligence
 - Computational Linguistics
 - Information Retrieval
-name: Nelson Bighetti
+name: Dennis Sobolewski
 organizations:
-- name: Stanford University
+- name: Bluetree Network
   url: ""
-role: Professor of Artificial Intelligence
+role: Data Scientist
 social:
 - icon: envelope
   icon_pack: fas
