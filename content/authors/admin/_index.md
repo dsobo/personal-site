@@ -38,5 +38,5 @@ user_groups:
 - Visitors
 ---
 
-I am a Data Scientist and consultant at [Bluetree Network](https://www.bluetreenetwork.com/), where I work to help healthcare organizations find insight in their hard earned data.
+I am a Data Scientist and consultant at [Bluetree Network](https://www.bluetreenetwork.com/), where I work to help healthcare organizations find insight in their hard-earned data.
 
