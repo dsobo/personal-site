@@ -5,20 +5,18 @@ bio: My research interests include distributed robotics, mobile computing and pr
   matter.
 education:
   courses:
-  - course: PhD in Artificial Intelligence
-    institution: Stanford University
-    year: 2012
-  - course: MEng in Artificial Intelligence
-    institution: Massachusetts Institute of Technology
-    year: 2009
-  - course: BSc in Artificial Intelligence
-    institution: Massachusetts Institute of Technology
-    year: 2008
+  - course: MSci in Business Analytics
+    institution: University of Notre Dame
+    year: 2017
+  - course: Bachelor of Finance
+    institution: University of Notre Dame
+    year: 2011
 email: ""
 interests:
-- Artificial Intelligence
-- Computational Linguistics
-- Information Retrieval
+- Machine Learning
+- Statistics
+- Data Visualization
+- Blockchain Technology
 name: Dennis Sobolewski
 organizations:
 - name: Bluetree Network
@@ -31,18 +29,14 @@ social:
 - icon: twitter
   icon_pack: fab
   link: https://twitter.com/GeorgeCushen
-- icon: google-scholar
-  icon_pack: ai
-  link: https://scholar.google.co.uk/citations?user=sIwtMXoAAAAJ
 - icon: github
   icon_pack: fab
-  link: https://github.com/gcushen
+  link: https://github.com/dsobo
 superuser: true
 user_groups:
 - Researchers
 - Visitors
 ---
 
-Nelson Bighetti is a professor of artificial intelligence at the Stanford AI Lab. His research interests include distributed robotics, mobile computing and programmable matter. He leads the Robotic Neurobiology group, which develops self-reconfiguring robots, systems of self-organizing robots, and mobile sensor networks.
+I am a Data Scientist and consultant at [Bluetree Network](https://www.bluetreenetwork.com/), where I work to help healthcare organizations find insight in their hard earned data.
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed neque elit, tristique placerat feugiat ac, facilisis vitae arcu. Proin eget egestas augue. Praesent ut sem nec arcu pellentesque aliquet. Duis dapibus diam vel metus tempus vulputate.
