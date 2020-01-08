@@ -5,12 +5,174 @@
     <link>/tags/demo/</link>
       <atom:link href="/tags/demo/index.xml" rel="self" type="application/rss+xml" />
     <description>Demo</description>
-    <generator>Source Themes Academic (https://sourcethemes.com/academic/)</generator><language>en-us</language><lastBuildDate>Wed, 27 Apr 2016 00:00:00 +0000</lastBuildDate>
+    <generator>Source Themes Academic (https://sourcethemes.com/academic/)</generator><language>en-us</language><lastBuildDate>Tue, 07 Jan 2020 00:00:00 +0000</lastBuildDate>
     <image>
       <url>/img/icon-192.png</url>
       <title>Demo</title>
       <link>/tags/demo/</link>
     </image>
+    
+    <item>
+      <title>Hello Caret</title>
+      <link>/post/hello-caret/</link>
+      <pubDate>Tue, 07 Jan 2020 00:00:00 +0000</pubDate>
+      <guid>/post/hello-caret/</guid>
+      <description>
+
+
+&lt;p&gt;No R data science blog would be complete without the obligatory introduction tutorial to the awesome Caret (&lt;strong&gt;C&lt;/strong&gt;lassification &lt;strong&gt;A&lt;/strong&gt;nd &lt;strong&gt;RE&lt;/strong&gt;gression &lt;strong&gt;T&lt;/strong&gt;raining) package written by Max Kuhn. Below is one of the first R markdown writeups that I ever wrote a few years back. It was part exercise in creating a reproducible report and part practice with using caret to build and evaluate models. I dug up my old R project and thought it would make a fitting first post to my personal site.&lt;/p&gt;
+&lt;div id=&#34;simple-caret-framework&#34; class=&#34;section level2&#34;&gt;
+&lt;h2&gt;Simple Caret Framework&lt;/h2&gt;
+&lt;p&gt;Caret is an extremely useful R package that makes training, comparing, and tuning models easier. The goal of this exercise is to demonstrate the simplest implementation of Caret using the &lt;a href=&#34;https://ww2.amstat.org/publications/jse/v19n3/decock.pdf&#34;&gt;Ames Housing Dataset&lt;/a&gt;. For this problem we are trying to create a model for predicting the sale price of homes in Ames, Iowa. I remember just starting out and struggling to find answers to basic modeling questions so I will try to address some of those beginner “gotcha” questions that stumped me initially. For the sake of this tutorial I will not touch on feature engineering besides simple pre-processing steps that come built in with Caret.&lt;/p&gt;
+&lt;/div&gt;
+&lt;div id=&#34;the-data&#34; class=&#34;section level2&#34;&gt;
+&lt;h2&gt;The Data&lt;/h2&gt;
+&lt;p&gt;Once we remove the unnecessary “Id” column from our training dataset we are left with a mix of 80 numeric and categorical variables. If we take a look we also see there are a large number of missing values in our dataset.&lt;/p&gt;
+&lt;pre class=&#34;r&#34;&gt;&lt;code&gt;library(tidyverse)
+library(caret)
+
+train &amp;lt;- read.csv(here::here(&amp;quot;data&amp;quot;,&amp;quot;train.csv&amp;quot;), stringsAsFactors = F)
+train &amp;lt;- train %&amp;gt;% select(-Id)
+
+#Count NAs per column and graph
+map_df(train, ~sum(is.na(.))) %&amp;gt;% gather() %&amp;gt;% 
+  filter(value &amp;gt; 0) %&amp;gt;%
+  ggplot(.,aes(x = reorder(key,-value), y = value)) + 
+  geom_bar(stat=&amp;quot;identity&amp;quot;) +
+  labs(title = &amp;quot;Missing Values&amp;quot;,x=&amp;quot;&amp;quot;) +
+  theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5))&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;img src=&#34;../../post/2020-01-07-hello-caret_files/figure-html/missing_vars_code-1.png&#34; width=&#34;672&#34; /&gt;&lt;/p&gt;
+&lt;p&gt;Our first decision is what to do with this missing data. After reading through the data documentation it is not entirely clear if the missing values are due to data collection issues or if the absense simply means the value is “none” or 0 in numerical cases. Looking at the plot it appears there are many missing values for the PoolQC variable. It would make sense that many houses would not have a pool and this should in fact be replaced with the category “none”. The missing values for the garage and basement variables all seem to be perfectly correlated making me think if a home did not have a garage they had NAs across the board for those. I am going to assume a missing value should be replaced with “none” if categorical or 0 if numeric. If we believed these were missing due to errors in data collection we would want to impute the missing values with a best estimate. Caret has a few methods for doing this in its preProcess function that are simple to use.&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;Note: To replace the NAs for categorical data we will want these variables to be type = character. Once values are replaced we want to then change these to type = factor for modeling&lt;/em&gt;&lt;/p&gt;
+&lt;pre class=&#34;r&#34;&gt;&lt;code&gt;#Replace missing values with &amp;quot;none&amp;quot; or &amp;quot;0&amp;quot; based on categorical vs numeric 
+train_num &amp;lt;- train %&amp;gt;% select_if(is.numeric) 
+train_cat &amp;lt;- train %&amp;gt;% select_if(is.character) 
+
+train_num[is.na(train_num)] &amp;lt;- 0
+train_cat[is.na(train_cat)] &amp;lt;- &amp;quot;None&amp;quot;
+train_cat &amp;lt;- map_df(train_cat,as.factor)
+
+#Combine replaced dataframes  
+train_pp &amp;lt;- cbind(train_cat,train_num)
+rm(train_cat,train_num)&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div id=&#34;setting-our-training-framework&#34; class=&#34;section level2&#34;&gt;
+&lt;h2&gt;Setting our Training Framework&lt;/h2&gt;
+&lt;p&gt;Now that we have our data in a clean format we are ready to define our Caret trainControl settings. These settings will determine how a model is evaluated so we can compare apples to apples when looking at results for different models. The most simple evaluation method is to train a model on some portion of the training data, predict the outcome on the portion that was withheld, and then measure the accuracy of the predicted vs actual values. In order to make sure we are not overfitting our model or working with a biased train/test set that could affect results we will use cross validation. In Caret we can use the createFolds function to create an index of stratified samples to be used for cross validation. Here we create 10 folds that we then feed into our trainControl index. Each model will train on 9 of the folds and then predict the SalePrice on the 10th. This will continue until every fold’s outcomes have been predicted based on the other 9 and the results will be averaged. This ensures each model is undergoing the same 10 fold cross validation so we are comparing their results fairly.&lt;/p&gt;
+&lt;pre class=&#34;r&#34;&gt;&lt;code&gt;#define training folds and steps for modeling
+##set.seed for reproducability when randomly choosing folding
+set.seed(1108)
+
+myFolds &amp;lt;- createFolds(train_pp$SalePrice,10)
+
+myControl &amp;lt;- trainControl(
+  verboseIter = F, #prints training progress to console
+  savePredictions = T,
+  index = myFolds
+)&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div id=&#34;lets-get-modeling&#34; class=&#34;section level2&#34;&gt;
+&lt;h2&gt;Lets get Modeling!&lt;/h2&gt;
+&lt;p&gt;Now that we have our training method we are ready to start modeling. In the past I remember having a lot of uncertainty at this stage due to the factor data we have in our dataset. Regression models cannot handle factor data so should I create dummy variables prior to training my models? Should these dummy variables also be used for ensemble algorithms like random forest that are able to handle factors? It took me way too long to find out that when using the formula layout (y~.) in Caret it automatically turns all factors into dummy variables and that I was doing extra work for no reason. Also, using the formula method with algos like random forest is fine in most cases. For this write up I experimented with both and found the dummy variable version of random forest actually out performed the factor one.&lt;/p&gt;
+&lt;p&gt;The beauty of Caret is that it recognized algorithms from many different R packages. Once the framework for training and evaluating a model is built it is as easy as changing one variable in most cases to do the same thing on a completely different maching learning algorithm. A list of all models possible for Caret can be found &lt;a href=&#34;https://topepo.github.io/caret/available-models.html&#34;&gt;here&lt;/a&gt;.&lt;/p&gt;
+&lt;div id=&#34;multiple-regression&#34; class=&#34;section level3&#34;&gt;
+&lt;h3&gt;Multiple Regression&lt;/h3&gt;
+&lt;p&gt;We will start with a basic multiple regression model. For regression models it is almost always recommended to center and scale your data beforehand. Caret makes this simple with the preProcess settings in the train function. We will also use “nzv” to remove all varaibles with zero or near zero varianace. It is also also easy to create principal components to be used in our model by adding “pca” to preProcess which we will also explore. For PCA many near zero variance variables might be combined into useful information so we will want to use “zv” to only remove zero variance variables. Below shows the training process and best result for each method. Now we have RMSE values that we can use as a benchmark for comparing other modeling techniques. We can see that the PCA model drastically outperformed the regular multiple regression model.&lt;/p&gt;
+&lt;pre class=&#34;r&#34;&gt;&lt;code&gt;lm &amp;lt;- train(
+  SalePrice~.,
+  data = train_pp,
+  preProcess = c(&amp;quot;nzv&amp;quot;,&amp;quot;center&amp;quot;,&amp;quot;scale&amp;quot;),
+  metric = &amp;quot;RMSE&amp;quot;,
+  method = &amp;quot;lm&amp;quot;,
+  trControl = myControl
+)
+
+min(lm$results$RMSE)&lt;/code&gt;&lt;/pre&gt;
+&lt;pre&gt;&lt;code&gt;## [1] 64894.82&lt;/code&gt;&lt;/pre&gt;
+&lt;pre class=&#34;r&#34;&gt;&lt;code&gt;lm_pca &amp;lt;- train(
+  SalePrice~.,
+  data = train_pp,
+  preProcess = c(&amp;quot;zv&amp;quot;,&amp;quot;center&amp;quot;,&amp;quot;scale&amp;quot;,&amp;quot;pca&amp;quot;),
+  metric = &amp;quot;RMSE&amp;quot;,
+  method = &amp;quot;lm&amp;quot;,
+  trControl = myControl
+)
+
+min(lm_pca$results$RMSE)&lt;/code&gt;&lt;/pre&gt;
+&lt;pre&gt;&lt;code&gt;## [1] 39421.78&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div id=&#34;glmnet&#34; class=&#34;section level3&#34;&gt;
+&lt;h3&gt;GLMNET&lt;/h3&gt;
+&lt;p&gt;Glmnet is a package that fits a generalized linear model via penalized maximum likelihood. More information on how this works can be found &lt;a href=&#34;https://web.stanford.edu/~hastie/glmnet/glmnet_alpha.html&#34;&gt;here&lt;/a&gt;. Glmnet is easily interpretable like a multiple regression model but avoids many of the common pitfalls in cases where there are many highly correlated variables. One of the main differences when using glmnet in the Caret framework is that there are tuning parameters. Caret makes it very simple to test many different combinations of tuning parameters by using a tuning grid. If the tuneGrid variable is not specified Caret will choose default values that may yield decent results but can probably be improved upon in most cases. Looking at the Caret &lt;a href=&#34;https://topepo.github.io/caret/available-models.html&#34;&gt;methods&lt;/a&gt; documentation we can see there are two variables that can be tuned: alpha and lambda. Alpha is always 0-1 while lambda can be infinite. The default settings choose a best lambda of 12563 for us which I will use as a base for choosing values. Glmnet can train many different values of lambda at once so adding a large sequence of these to your tuningGrid will not drastically affect run time. As we can see our optimal glmnet model was an improvement over our other regression models.&lt;/p&gt;
+&lt;pre class=&#34;r&#34;&gt;&lt;code&gt;glmnet &amp;lt;- train(
+  SalePrice~.,
+  data = train_pp,
+  preProcess = c(&amp;quot;nzv&amp;quot;,&amp;quot;center&amp;quot;,&amp;quot;scale&amp;quot;),
+  metric = &amp;quot;RMSE&amp;quot;,
+  method = &amp;quot;glmnet&amp;quot;,
+  trControl = myControl,
+  tuneGrid = expand.grid(
+    alpha = seq(0,1,.1),
+    lambda = seq(1000,50000,100)
+  )
+)
+
+min(glmnet$results$RMSE)&lt;/code&gt;&lt;/pre&gt;
+&lt;pre&gt;&lt;code&gt;## [1] 37086.6&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div id=&#34;random-forest&#34; class=&#34;section level3&#34;&gt;
+&lt;h3&gt;Random Forest&lt;/h3&gt;
+&lt;p&gt;Random Forest models are extremely easy to use with little or no pre-processing necessary. These models are based off of decision tree principals which make them highly adaptable to almost all types of input data. What you gain in ease-of-use you lose in interpretability however and random forest models are typically seen as a “black box” algorithm. When we look at the Caret documentation we can see the only variable that requires training is the mtry varaible. The default settings choose an optimal mtry of 131 so we will pick a range around that number to see if we can improve on this.&lt;/p&gt;
+&lt;pre class=&#34;r&#34;&gt;&lt;code&gt;rf &amp;lt;- train(
+  SalePrice~.,
+  data = train_pp,
+  metric = &amp;quot;RMSE&amp;quot;,
+  method = &amp;quot;rf&amp;quot;,
+  trControl = myControl,
+  tuneGrid = expand.grid(
+    mtry = seq(70, 150, 5)
+  )
+)
+
+min(rf$results$RMSE)&lt;/code&gt;&lt;/pre&gt;
+&lt;pre&gt;&lt;code&gt;## [1] 36259.78&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;div id=&#34;xgboost&#34; class=&#34;section level3&#34;&gt;
+&lt;h3&gt;XGBoost&lt;/h3&gt;
+&lt;p&gt;The &lt;a href=&#34;https://cran.r-project.org/web/packages/xgboost/vignettes/xgboostPresentation.html&#34;&gt;XGBoost&lt;/a&gt; package is another popular modeling tool in R and has been featured in multiple winning submissions for Kaggle online data science competitions. XGBoost creates gradient boosted tree models that can be finely tuned to maximize results. There is also an xgbLiner option for Caret that creates penalized regression models similar to GLMNET. The xgbTree method has many of the same benefits as random forest but requires the tuning of many parameters in order to acheieve the best results. Using the Caret documentation, &lt;a href=&#34;https://www.hackerearth.com/practice/machine-learning/machine-learning-algorithms/beginners-tutorial-on-xgboost-parameter-tuning-r/tutorial/&#34;&gt;this&lt;/a&gt; beginner’s guide to XGBoost tuning, and good old fashioned trial and error I came up with the below tuning grid as a quick first stab. This is an example where experience is needed to find the best results and modeling can be a bit of an artform. I am certain these results could be improved upon with finer tuning.&lt;/p&gt;
+&lt;pre class=&#34;r&#34;&gt;&lt;code&gt;xgbTree &amp;lt;- train(
+  SalePrice~.,
+  data = train_pp,
+  metric = &amp;quot;RMSE&amp;quot;,
+  method = &amp;quot;xgbTree&amp;quot;,
+  trControl = myControl,
+  tuneGrid = expand.grid(
+    nrounds= 500,
+    max_depth = c(4,6,8),
+    eta = c(.05,0.1,0.2),
+    gamma = 0,
+    colsample_bytree = c(.5,.7),
+    subsample = c(0.5,0.8),
+    min_child_weight = 0
+  )
+)
+
+min(xgbTree$results$RMSE)&lt;/code&gt;&lt;/pre&gt;
+&lt;pre&gt;&lt;code&gt;## [1] 34102.92&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div id=&#34;comparing-results&#34; class=&#34;section level2&#34;&gt;
+&lt;h2&gt;Comparing Results&lt;/h2&gt;
+&lt;p&gt;Caret has an useful resamples function for comparing the results of different models. After combining our models into a list we can use built in plots to compare each model based on the cross validated RMSE results. I find the built in dot plot to be easest to read. Here we are looking for not only the lowest RMSE value but also the least variation among the results for each validation fold. As we can see the XGBoost model performed best with a small variation among results. We can see below that the xgbTree model outperformed all others in these categories based on the below.&lt;/p&gt;
+&lt;pre class=&#34;r&#34;&gt;&lt;code&gt;##Compare all models to choose the best one
+mod_list &amp;lt;- list(lm = lm,pca = lm_pca,glmnet = glmnet,rf = rf, XGBTree = xgbTree)
+resamp &amp;lt;- resamples(mod_list)
+
+dotplot(resamp, metric = &amp;quot;RMSE&amp;quot;)&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;img src=&#34;../../post/2020-01-07-hello-caret_files/figure-html/resamples-1.png&#34; width=&#34;672&#34; /&gt;&lt;/p&gt;
+&lt;/div&gt;
+</description>
+    </item>
     
     <item>
       <title>External Project</title>
