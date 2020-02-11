@@ -33,17 +33,32 @@
   </url>
   
   <url>
+    <loc>/categories/</loc>
+    <lastmod>2020-02-10T15:48:31-06:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>/post/exploratory-analysis-of-time-series-data-with-tidyverts/</loc>
+    <lastmod>2020-02-10T15:48:31-06:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>/post/</loc>
+    <lastmod>2020-02-10T15:48:31-06:00</lastmod>
+  </url>
+  
+  <url>
+    <loc>/categories/r/</loc>
+    <lastmod>2020-02-10T15:48:31-06:00</lastmod>
+  </url>
+  
+  <url>
     <loc>/tags/demo/</loc>
     <lastmod>2020-01-07T21:10:55-06:00</lastmod>
   </url>
   
   <url>
     <loc>/post/hello-caret/</loc>
-    <lastmod>2020-01-07T21:10:55-06:00</lastmod>
-  </url>
-  
-  <url>
-    <loc>/post/</loc>
     <lastmod>2020-01-07T21:10:55-06:00</lastmod>
   </url>
   
@@ -143,22 +158,12 @@
   </url>
   
   <url>
-    <loc>/categories/</loc>
-    <lastmod>2015-07-23T21:13:14-05:00</lastmod>
-  </url>
-  
-  <url>
     <loc>/post/2015-07-23-r-rmarkdown/</loc>
     <lastmod>2015-07-23T21:13:14-05:00</lastmod>
   </url>
   
   <url>
     <loc>/tags/plot/</loc>
-    <lastmod>2015-07-23T21:13:14-05:00</lastmod>
-  </url>
-  
-  <url>
-    <loc>/categories/r/</loc>
     <lastmod>2015-07-23T21:13:14-05:00</lastmod>
   </url>
   

@@ -1,0 +1,433 @@
+---
+title: Exploratory Analysis of Time Series Data with Tidyverts
+author: Dennis Sobolewski
+date: '2020-02-10'
+slug: exploratory-analysis-of-time-series-data-with-tidyverts
+categories:
+  - R
+tags: []
+subtitle: ''
+summary: ''
+authors: []
+lastmod: '2020-02-10T15:48:31-06:00'
+featured: no
+image:
+  caption: ''
+  focal_point: ''
+  preview_only: no
+projects: []
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(fpp3)
+
+
+knitr::opts_chunk$set(fig.retina = 3, warning = FALSE, message = FALSE, echo = FALSE)
+
+
+tourism <- read_csv(here::here("static","data","tourism.csv"))
+
+```
+
+## Into to Tidyverts
+
+Last month, I attended rstudio::conf 2020 and took [Rob J Hyndman's](https://robjhyndman.com/) awesome Tidy Time Series and Forecasting in R workshop. During this workshop, Professor Hyndman highlighted functionality within the [Tidyverts](https://tidyverts.org/) packages for exploring and extracting features from time series datasets.Tidyverts is comprised of three main packages and works within the Tidyverse framework (i.e. piping and dplyr functions).
+
+* __Tsibble-__ Makes data wrangling and formatting of time series data easier. Formats time series into a "tsibble" data object so other packages within Tidyverts know how to handle them.
+* __Feasts-__ Used for extracting features from time series data. Has many useful functions for extracting statistics from a time series that can be used for exploratory analysis and comparison.
+* __Fable-__ Simplifies the creation for forecasting models for time series data.
+
+This post will review and expand on exploratory data analysis techniques, primarily using tsibble and feasts, learned during the aforementioned forecasting workshop. I will explore time series modeling with Fable in a seperate post. 
+
+## Creating a Tsibble Object
+
+To begin using the Tidyvert packages you first need to convert your data into a tsible object. I will demonstrate this using a dataset showing quarterly Australian tourism totals by State, Region, and purpose that can be found [here](http://robjhyndman.com/data/tourism.xlsx). 
+
+```{r data_check, include=TRUE, echo = TRUE}
+
+head(tourism)
+
+```
+
+To convert this to a tsibble object we need to specify an index and a key. The index is a single datetime or date column that specifies the time index and interval of the dataset. Here we are working with quarters represented by the first day of each quarter. The tsibble package makes it easy to change this column from a date to a "qtr" data type using the yearquarter() function. Each variable that uniquely determines a time series should be specified using the "key"
+parameter. 
+
+```{r tsibble_obj, include=TRUE, echo = TRUE}
+
+tourism_ts <- tourism %>%
+  mutate(Quarter = tsibble::yearquarter(Quarter)) %>%
+  tsibble::as_tsibble(index = Quarter, key = c(Region, State, Purpose)) 
+
+head(tourism_ts)
+
+```
+
+Inspecting the new object displays the key variables and shows the updated data type of the Quarter column. The functions within all of the Tidyverts packages are built to work with tsibble objects based on the index and key specification. The interval of the index column is automatically set and most functions will iterate over each key combination present in the dataset. This makes it simple to visualize and run calculations on many different time series at once.
+
+## Visualizing Time Series
+
+Tsibble objects work well with the autoplot() function. If we autoplot our ts object a ggplot graph with a line for each unique key is created. The interval being used is always specified at the bottom. 
+
+```{r autoplot, include=TRUE, echo = TRUE}
+
+autoplot(tourism_ts, Trips) + 
+  guides(color = F) 
+
+
+```
+
+Since these objects interact nicely with the rest of the tidyverse, dplyr functions can be used to filter, group, and summarise tsibbles to explore our data further. The below series of piped functions filters our tourism travel tsibble to just holidays, groups by Australian state, and sums the number of trips. 
+
+```{r autoplot_dplyr, include=TRUE, echo = TRUE}
+
+holidays_ts <- tourism_ts %>%
+  filter(Purpose == "Holiday") %>%
+  group_by(State) %>%
+  summarise(Trips = sum(Trips))
+
+holidays_ts %>%
+  autoplot(Trips) +
+  labs(title = "Australian Holiday Travel", col = "") +
+  theme(legend.position="bottom") +
+  guides(col=guide_legend(ncol=4)) 
+  
+```
+
+```{r gg_season, include=TRUE, echo = TRUE}
+
+holidays_ts %>%
+  filter(State == "Victoria") %>%
+  feasts::gg_season(Trips, labels = "right")
+
+```
+
+```{r gg_season_facet, include=TRUE, echo = TRUE}
+
+holidays_ts %>%
+  feasts::gg_season(Trips)
+  
+```
+
+```{r gg_season_hourly, include=TRUE, echo = TRUE}
+
+tsibbledata::vic_elec %>%
+  feasts::gg_season(Demand, period = "day")
+
+```
+
+```{r gg_subseries, include=TRUE, echo = TRUE}
+
+holidays_ts %>%
+  filter(State == "Victoria") %>%
+  feasts::gg_subseries(Trips)
+
+```
+
+```{r gg_subseries_facet, include=TRUE, echo = TRUE}
+
+holidays_ts %>%
+  feasts::gg_subseries(Trips)
+  
+```
+
+```{r gg_subseries_hourly, include=TRUE, echo = TRUE}
+
+tsibbledata::vic_elec %>%
+  tsibble::index_by(Month = tsibble::yearquarter(Time)) %>%
+  summarise(Demand = sum(Demand)) %>%
+  feasts::gg_subseries(Demand)
+
+tsibbledata::vic_elec %>%
+  tsibble::index_by(Month = tsibble::yearmonth(Time)) %>%
+  summarise(Demand = sum(Demand)) %>%
+  feasts::gg_subseries(Demand)
+
+```
+
+
+```{r calendar_hourly, include=TRUE, echo = TRUE}
+
+calendar <- tsibbledata::vic_elec %>%
+  filter(lubridate::year(Date) == 2013) %>%
+  mutate(Hour = lubridate::hour(Time)) %>%
+  sugrrants::frame_calendar(
+    x = Hour, 
+    y = Demand, 
+    date = Date, 
+    nrow = 4
+  ) %>%
+  ggplot(aes(x = .Hour, y = .Demand, group = Date)) +
+  geom_line()
+  
+sugrrants::prettify(calendar, size = 3, label.padding = unit(0.15, "lines"))
+
+```
+
+```{r acf, include=TRUE, echo = TRUE}
+
+
+vic_acf <- holidays_ts %>%
+  filter(State == "Victoria") %>%
+  feasts::ACF(Trips, lag_max = 24) 
+
+autoplot(vic_acf)
+
+holidays_ts %>%
+  feasts::ACF(Trips) %>%
+  autoplot()
+
+
+```
+
+```{r dcmp, include=TRUE, echo = TRUE}
+
+
+vic_dcmp <- holidays_ts %>%
+  filter(State == "Victoria") %>%
+  fabletools::model(feasts::STL(Trips)) %>%
+  fabletools::components()
+
+head(vic_dcmp)
+
+autoplot(vic_dcmp)
+
+```
+
+```{r dcmp_subseries, include=TRUE, echo = TRUE}
+
+feasts::gg_subseries(vic_dcmp, season_year)
+
+```
+
+```{r combining, include=TRUE, echo = TRUE}
+
+holidays_ts %>%
+  filter(State == "Victoria") %>%
+  autoplot(Trips) +
+  autolayer(vic_dcmp, trend, col = 'blue')
+
+
+```
+
+```{r combining_all, include=TRUE, echo = TRUE}
+
+## Decomposition of all states
+
+holiday_dcmp <- holidays_ts %>%
+  fabletools::model(feasts::STL(Trips)) %>%
+  fabletools::components() 
+
+autoplot(holiday_dcmp)   +
+  labs(col = "") +
+  theme(legend.position="bottom") +
+  guides(col=guide_legend(ncol=2)) 
+
+## Look at subseries of the seasonal pattern
+feasts::gg_subseries(holiday_dcmp, season_year)
+
+## Combine actual data with decomposition trend
+holidays_ts %>%
+  autoplot(Trips, alpha = .4) +
+  autolayer(holiday_dcmp, trend, scale_bars = F) +
+  labs(col = "") +
+  theme(legend.position="bottom") +
+  guides(col=guide_legend(ncol=2)) 
+
+```
+
+```{r stl_feats, include=TRUE, echo = TRUE}
+
+tourism_stl_feats <- tourism_ts %>%
+  fabletools::features(Trips, features = feasts::feat_stl) 
+
+head(tourism_stl_feats)
+
+```
+
+```{r stl_feats_plot, include=TRUE, echo = TRUE}
+
+tourism_stl_feats %>%
+  ggplot(aes(x = trend_strength, y = seasonal_strength_year, col = Purpose)) +
+  geom_point() +
+  facet_wrap(~State)
+
+```
+
+```{r stl_feats_seasonal, include=TRUE, echo = TRUE}
+
+most_seasonal <- tourism_stl_feats %>%
+  filter(seasonal_strength_year == max(seasonal_strength_year))
+
+tourism_ts %>%
+  inner_join(most_seasonal, by = c("State", "Region", "Purpose")) %>%
+  ggplot(aes(x = Quarter, y = Trips)) + geom_line() +
+  facet_grid(vars(State, Region, Purpose))
+
+```
+
+```{r stl_trends_seasonal, include=TRUE, echo = TRUE}
+
+most_trended <- tourism_ts %>%
+  fabletools::features(Trips, feasts::feat_stl) %>%
+  filter(trend_strength == max(trend_strength))
+
+tourism_ts %>%
+  inner_join(most_trended, by = c("State", "Region", "Purpose")) %>%
+  ggplot(aes(x = Quarter, y = Trips)) + geom_line() +
+  facet_grid(vars(State, Region, Purpose))
+
+```
+
+
+```{r tourism_features, include=TRUE, echo = TRUE}
+
+tourism_features <- tourism_ts %>%
+  fabletools::features(Trips, fabletools::feature_set(pkgs = "feasts"))
+
+head(tourism_features)
+
+```
+
+```{r tourism_features_cluster, include=TRUE, echo = TRUE}
+
+features_matrix <- tourism_features %>%
+  select(-State, -Region, -Purpose) %>%
+  data.matrix() %>%
+  scale() 
+
+row.names(features_matrix) <- paste0(tourism_features$State,"/",tourism_features$Region,"/",tourism_features$Purpose)
+
+
+##Silhouette Analysis
+sil_width <- map_dbl(2:24, function(k){
+  model <- cluster::pam(features_matrix, k = k)
+  model$silinfo$avg.width
+  
+})
+
+data.frame(k = 2:24, sil_width = sil_width) %>%
+  ggplot(aes(x = k, y = sil_width)) +
+  geom_point() +
+  geom_line() +
+  scale_x_continuous(breaks = 2:24) +
+  labs(title = "Silhouette Anaylsis for Optimal K")
+
+## Hierarchical clustering
+
+features_hc <- hclust(dist(features_matrix, method = "euclidean"), method = "complete")
+
+dendextend::color_branches(as.dendrogram(features_hc), k = 3) -> features_dend
+
+plot(features_dend, leaflab = "none")
+
+
+set.seed(1988)
+tourism_features %>%
+  mutate(cluster = cutree(features_hc, k = 3)) -> features_clust
+
+tourism_ts %>%
+  inner_join(features_clust) %>%
+  filter(cluster == 3) %>%
+  mutate(Series = paste0(State,"/",Region,"/",Purpose)) %>%
+  ggplot(aes(x = Quarter, y = Trips)) +
+  geom_line() +
+  labs(title = "Outlying time series in HC space (Cluster 3)") +
+  facet_wrap(~Series,ncol = 1, scales = "free")
+
+cluster_summary <- features_clust %>%
+  select(-State,-Region,-Purpose) %>%
+  group_by(cluster) %>%
+  summarise_all(mean) %>%
+  pivot_longer(cols = -cluster) %>%
+  pivot_wider(names_from = cluster,
+              values_from = value) 
+
+scaled <- cluster_summary %>%
+  select(`1`,`2`) %>%
+  data.matrix() %>%
+  scale()
+
+cluster_summary %>%
+  select(-`3`) %>%
+  cbind(scaled_abs_diff = abs(as.numeric(scaled[,2])-as.numeric(scaled[,1]))) %>%
+  arrange(desc(scaled_abs_diff)) %>%
+  head()
+
+
+tourism_ts %>%
+  inner_join(features_clust) %>%
+  autoplot(Trips) +
+  guides(color = F) +
+  facet_wrap(~cluster, ncol = 1) +
+  labs(title = "Australia Trips Faceted by Cluster")
+
+tourism_ts %>%
+  inner_join(features_clust) %>%
+  group_by(cluster) %>%
+  tsibble::index_by(Quarter) %>%
+  summarise(Trips = mean(Trips)) %>%
+  autoplot(Trips) +
+  labs(title = "Average Trip Total by Cluster")
+
+```
+
+
+```{r tourism_features_pca, include=TRUE, echo = TRUE}
+
+## PCA Analysis
+
+
+features_pcs <- tourism_features %>%
+  select(-State, -Region, -Purpose) %>%
+  prcomp(scale = TRUE) %>%
+  broom::augment(tourism_features)
+
+
+features_pcs %>% 
+  ggplot(aes(x=.fittedPC1, y=.fittedPC2, col = Purpose)) +
+  geom_point(size = 1.5) + 
+  theme(aspect.ratio=1)
+
+
+features_pcs %>% 
+  ggplot(aes(x=.fittedPC1, y=.fittedPC2, col = Purpose)) +
+  geom_point(aes(size = .fittedPC1 > 11)) + 
+  scale_size_manual(values =c(1.5, 4), guide = F)+
+  theme(aspect.ratio=1)
+
+
+outliers <- features_pcs %>%
+  filter(.fittedPC1 > 11)
+
+outliers %>%
+  left_join(tourism, by = c("State", "Region", "Purpose")) %>%
+  mutate(Series = paste0(State,"/",Region,"/",Purpose)) %>%
+  ggplot(aes(x = Quarter, y = Trips)) + 
+  geom_line() +
+  labs(title = "Outlying time series in PC space") +
+  facet_wrap(~Series, ncol = 1, scales = "free")
+
+```
+
+```{r tourism_features_pca_clust, include=TRUE, echo = TRUE}
+
+features_pcs %>% 
+  inner_join(features_clust) %>%
+  ggplot(aes(x=.fittedPC1, y=.fittedPC2, col = factor(cluster))) +
+  geom_point() + 
+  labs(color = "Cluster") +
+  theme(aspect.ratio=1)
+
+
+features_pcs %>% 
+  inner_join(features_clust) %>%
+  ggplot(aes(x=.fittedPC1, y=.fittedPC2, col = Purpose)) +
+  geom_point() + 
+  scale_size_manual(values =c(1.5, 4), guide = F)+
+  facet_wrap(~cluster) +
+  labs(title = "PC Space Plot Faceted by Cluster") +
+  theme(legend.position="bottom", aspect.ratio=1) 
+
+
+```

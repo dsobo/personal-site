@@ -1,0 +1,375 @@
+---
+title: Exploratory Analysis of Time Series Data with Tidyverts
+author: Dennis Sobolewski
+date: '2020-02-10'
+slug: exploratory-analysis-of-time-series-data-with-tidyverts
+categories:
+  - R
+tags: []
+subtitle: ''
+summary: ''
+authors: []
+lastmod: '2020-02-10T15:48:31-06:00'
+featured: no
+image:
+  caption: ''
+  focal_point: ''
+  preview_only: no
+projects: []
+---
+
+
+
+<div id="into-to-tidyverts" class="section level2">
+<h2>Into to Tidyverts</h2>
+<p>Last month, I attended rstudio::conf 2020 and took <a href="https://robjhyndman.com/">Rob J Hyndman’s</a> awesome Tidy Time Series and Forecasting in R workshop. During this workshop, Professor Hyndman highlighted functionality within the <a href="https://tidyverts.org/">Tidyverts</a> packages for exploring and extracting features from time series datasets.Tidyverts is comprised of three main packages and works within the Tidyverse framework (i.e. piping and dplyr functions).</p>
+<ul>
+<li><strong>Tsibble-</strong> Makes data wrangling and formatting of time series data easier. Formats time series into a “tsibble” data object so other packages within Tidyverts know how to handle them.</li>
+<li><strong>Feasts-</strong> Used for extracting features from time series data. Has many useful functions for extracting statistics from a time series that can be used for exploratory analysis and comparison.</li>
+<li><strong>Fable-</strong> Simplifies the creation for forecasting models for time series data.</li>
+</ul>
+<p>This post will review and expand on exploratory data analysis techniques, primarily using tsibble and feasts, learned during the aforementioned forecasting workshop. I will explore time series modeling with Fable in a seperate post.</p>
+</div>
+<div id="creating-a-tsibble-object" class="section level2">
+<h2>Creating a Tsibble Object</h2>
+<p>To begin using the Tidyvert packages you first need to convert your data into a tsible object. I will demonstrate this using a dataset showing quarterly Australian tourism totals by State, Region, and purpose that can be found <a href="http://robjhyndman.com/data/tourism.xlsx">here</a>.</p>
+<pre class="r"><code>head(tourism)</code></pre>
+<pre><code>## # A tibble: 6 x 5
+##   Quarter    Region   State           Purpose  Trips
+##   &lt;date&gt;     &lt;chr&gt;    &lt;chr&gt;           &lt;chr&gt;    &lt;dbl&gt;
+## 1 1998-01-01 Adelaide South Australia Business  135.
+## 2 1998-04-01 Adelaide South Australia Business  110.
+## 3 1998-07-01 Adelaide South Australia Business  166.
+## 4 1998-10-01 Adelaide South Australia Business  127.
+## 5 1999-01-01 Adelaide South Australia Business  137.
+## 6 1999-04-01 Adelaide South Australia Business  200.</code></pre>
+<p>To convert this to a tsibble object we need to specify an index and a key. The index is a single datetime or date column that specifies the time index and interval of the dataset. Here we are working with quarters represented by the first day of each quarter. The tsibble package makes it easy to change this column from a date to a “qtr” data type using the yearquarter() function. Each variable that uniquely determines a time series should be specified using the “key”
+parameter.</p>
+<pre class="r"><code>tourism_ts &lt;- tourism %&gt;%
+  mutate(Quarter = tsibble::yearquarter(Quarter)) %&gt;%
+  tsibble::as_tsibble(index = Quarter, key = c(Region, State, Purpose)) 
+
+head(tourism_ts)</code></pre>
+<pre><code>## # A tsibble: 6 x 5 [1Q]
+## # Key:       Region, State, Purpose [1]
+##   Quarter Region   State           Purpose  Trips
+##     &lt;qtr&gt; &lt;chr&gt;    &lt;chr&gt;           &lt;chr&gt;    &lt;dbl&gt;
+## 1 1998 Q1 Adelaide South Australia Business  135.
+## 2 1998 Q2 Adelaide South Australia Business  110.
+## 3 1998 Q3 Adelaide South Australia Business  166.
+## 4 1998 Q4 Adelaide South Australia Business  127.
+## 5 1999 Q1 Adelaide South Australia Business  137.
+## 6 1999 Q2 Adelaide South Australia Business  200.</code></pre>
+<p>Inspecting the new object displays the key variables and shows the updated data type of the Quarter column. The functions within all of the Tidyverts packages are built to work with tsibble objects based on the index and key specification. The interval of the index column is automatically set and most functions will iterate over each key combination present in the dataset. This makes it simple to visualize and run calculations on many different time series at once.</p>
+</div>
+<div id="visualizing-time-series" class="section level2">
+<h2>Visualizing Time Series</h2>
+<p>Tsibble objects work well with the autoplot() function. If we autoplot our ts object a ggplot graph with a line for each unique key is created. The interval being used is always specified at the bottom.</p>
+<pre class="r"><code>autoplot(tourism_ts, Trips) + 
+  guides(color = F) </code></pre>
+<p><img src="/post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/autoplot-1.png" width="672" /></p>
+<p>Since these objects interact nicely with the rest of the tidyverse, dplyr functions can be used to filter, group, and summarise tsibbles to explore our data further. The below series of piped functions filters our tourism travel tsibble to just holidays, groups by Australian state, and sums the number of trips.</p>
+<pre class="r"><code>holidays_ts &lt;- tourism_ts %&gt;%
+  filter(Purpose == &quot;Holiday&quot;) %&gt;%
+  group_by(State) %&gt;%
+  summarise(Trips = sum(Trips))
+
+holidays_ts %&gt;%
+  autoplot(Trips) +
+  labs(title = &quot;Australian Holiday Travel&quot;, col = &quot;&quot;) +
+  theme(legend.position=&quot;bottom&quot;) +
+  guides(col=guide_legend(ncol=4)) </code></pre>
+<p><img src="/post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/autoplot_dplyr-1.png" width="672" /></p>
+<pre class="r"><code>holidays_ts %&gt;%
+  filter(State == &quot;Victoria&quot;) %&gt;%
+  feasts::gg_season(Trips, labels = &quot;right&quot;)</code></pre>
+<p><img src="/post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/gg_season-1.png" width="672" /></p>
+<pre class="r"><code>holidays_ts %&gt;%
+  feasts::gg_season(Trips)</code></pre>
+<p><img src="/post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/gg_season_facet-1.png" width="672" /></p>
+<pre class="r"><code>tsibbledata::vic_elec %&gt;%
+  feasts::gg_season(Demand, period = &quot;day&quot;)</code></pre>
+<p><img src="/post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/gg_season_hourly-1.png" width="672" /></p>
+<pre class="r"><code>holidays_ts %&gt;%
+  filter(State == &quot;Victoria&quot;) %&gt;%
+  feasts::gg_subseries(Trips)</code></pre>
+<p><img src="/post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/gg_subseries-1.png" width="672" /></p>
+<pre class="r"><code>holidays_ts %&gt;%
+  feasts::gg_subseries(Trips)</code></pre>
+<p><img src="/post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/gg_subseries_facet-1.png" width="672" /></p>
+<pre class="r"><code>tsibbledata::vic_elec %&gt;%
+  tsibble::index_by(Month = tsibble::yearquarter(Time)) %&gt;%
+  summarise(Demand = sum(Demand)) %&gt;%
+  feasts::gg_subseries(Demand)</code></pre>
+<p><img src="/post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/gg_subseries_hourly-1.png" width="672" /></p>
+<pre class="r"><code>tsibbledata::vic_elec %&gt;%
+  tsibble::index_by(Month = tsibble::yearmonth(Time)) %&gt;%
+  summarise(Demand = sum(Demand)) %&gt;%
+  feasts::gg_subseries(Demand)</code></pre>
+<p><img src="/post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/gg_subseries_hourly-2.png" width="672" /></p>
+<pre class="r"><code>calendar &lt;- tsibbledata::vic_elec %&gt;%
+  filter(lubridate::year(Date) == 2013) %&gt;%
+  mutate(Hour = lubridate::hour(Time)) %&gt;%
+  sugrrants::frame_calendar(
+    x = Hour, 
+    y = Demand, 
+    date = Date, 
+    nrow = 4
+  ) %&gt;%
+  ggplot(aes(x = .Hour, y = .Demand, group = Date)) +
+  geom_line()
+  
+sugrrants::prettify(calendar, size = 3, label.padding = unit(0.15, &quot;lines&quot;))</code></pre>
+<p><img src="/post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/calendar_hourly-1.png" width="672" /></p>
+<pre class="r"><code>vic_acf &lt;- holidays_ts %&gt;%
+  filter(State == &quot;Victoria&quot;) %&gt;%
+  feasts::ACF(Trips, lag_max = 24) 
+
+autoplot(vic_acf)</code></pre>
+<p><img src="/post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/acf-1.png" width="672" /></p>
+<pre class="r"><code>holidays_ts %&gt;%
+  feasts::ACF(Trips) %&gt;%
+  autoplot()</code></pre>
+<p><img src="/post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/acf-2.png" width="672" /></p>
+<pre class="r"><code>vic_dcmp &lt;- holidays_ts %&gt;%
+  filter(State == &quot;Victoria&quot;) %&gt;%
+  fabletools::model(feasts::STL(Trips)) %&gt;%
+  fabletools::components()
+
+head(vic_dcmp)</code></pre>
+<pre><code>## # A dable:           6 x 8 [1Q]
+## # Key:               State, .model [1]
+## # STL Decomposition: Trips = trend + season_year + remainder
+##   State  .model     Quarter Trips trend season_year remainder season_adjust
+##   &lt;chr&gt;  &lt;chr&gt;        &lt;qtr&gt; &lt;dbl&gt; &lt;dbl&gt;       &lt;dbl&gt;     &lt;dbl&gt;         &lt;dbl&gt;
+## 1 Victo… feasts:…   1998 Q1 3204. 2456.       679.      68.7          2525.
+## 2 Victo… feasts:…   1998 Q2 2258. 2384.       -62.4    -63.7          2320.
+## 3 Victo… feasts:…   1998 Q3 1898. 2316.      -380.     -37.7          2279.
+## 4 Victo… feasts:…   1998 Q4 2004. 2259.      -236.     -18.9          2240.
+## 5 Victo… feasts:…   1999 Q1 2919. 2232.       679.       8.23         2241.
+## 6 Victo… feasts:…   1999 Q2 2183. 2194.       -63.0     51.2          2246.</code></pre>
+<pre class="r"><code>autoplot(vic_dcmp)</code></pre>
+<p><img src="/post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/dcmp-1.png" width="672" /></p>
+<pre class="r"><code>feasts::gg_subseries(vic_dcmp, season_year)</code></pre>
+<p><img src="/post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/dcmp_subseries-1.png" width="672" /></p>
+<pre class="r"><code>holidays_ts %&gt;%
+  filter(State == &quot;Victoria&quot;) %&gt;%
+  autoplot(Trips) +
+  autolayer(vic_dcmp, trend, col = &#39;blue&#39;)</code></pre>
+<p><img src="/post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/combining-1.png" width="672" /></p>
+<pre class="r"><code>## Decomposition of all states
+
+holiday_dcmp &lt;- holidays_ts %&gt;%
+  fabletools::model(feasts::STL(Trips)) %&gt;%
+  fabletools::components() 
+
+autoplot(holiday_dcmp)   +
+  labs(col = &quot;&quot;) +
+  theme(legend.position=&quot;bottom&quot;) +
+  guides(col=guide_legend(ncol=2)) </code></pre>
+<p><img src="/post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/combining_all-1.png" width="672" /></p>
+<pre class="r"><code>## Look at subseries of the seasonal pattern
+feasts::gg_subseries(holiday_dcmp, season_year)</code></pre>
+<p><img src="/post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/combining_all-2.png" width="672" /></p>
+<pre class="r"><code>## Combine actual data with decomposition trend
+holidays_ts %&gt;%
+  autoplot(Trips, alpha = .4) +
+  autolayer(holiday_dcmp, trend, scale_bars = F) +
+  labs(col = &quot;&quot;) +
+  theme(legend.position=&quot;bottom&quot;) +
+  guides(col=guide_legend(ncol=2)) </code></pre>
+<p><img src="/post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/combining_all-3.png" width="672" /></p>
+<pre class="r"><code>tourism_stl_feats &lt;- tourism_ts %&gt;%
+  fabletools::features(Trips, features = feasts::feat_stl) 
+
+head(tourism_stl_feats)</code></pre>
+<pre><code>## # A tibble: 6 x 12
+##   Region State Purpose trend_strength seasonal_streng… seasonal_peak_y…
+##   &lt;chr&gt;  &lt;chr&gt; &lt;chr&gt;            &lt;dbl&gt;            &lt;dbl&gt;            &lt;dbl&gt;
+## 1 Adela… Sout… Busine…          0.451            0.380                3
+## 2 Adela… Sout… Holiday          0.541            0.601                1
+## 3 Adela… Sout… Other            0.743            0.189                2
+## 4 Adela… Sout… Visiti…          0.433            0.446                1
+## 5 Adela… Sout… Busine…          0.453            0.140                3
+## 6 Adela… Sout… Holiday          0.512            0.244                2
+## # … with 6 more variables: seasonal_trough_year &lt;dbl&gt;, spikiness &lt;dbl&gt;,
+## #   linearity &lt;dbl&gt;, curvature &lt;dbl&gt;, stl_e_acf1 &lt;dbl&gt;, stl_e_acf10 &lt;dbl&gt;</code></pre>
+<pre class="r"><code>tourism_stl_feats %&gt;%
+  ggplot(aes(x = trend_strength, y = seasonal_strength_year, col = Purpose)) +
+  geom_point() +
+  facet_wrap(~State)</code></pre>
+<p><img src="/post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/stl_feats_plot-1.png" width="672" /></p>
+<pre class="r"><code>most_seasonal &lt;- tourism_stl_feats %&gt;%
+  filter(seasonal_strength_year == max(seasonal_strength_year))
+
+tourism_ts %&gt;%
+  inner_join(most_seasonal, by = c(&quot;State&quot;, &quot;Region&quot;, &quot;Purpose&quot;)) %&gt;%
+  ggplot(aes(x = Quarter, y = Trips)) + geom_line() +
+  facet_grid(vars(State, Region, Purpose))</code></pre>
+<p><img src="/post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/stl_feats_seasonal-1.png" width="672" /></p>
+<pre class="r"><code>most_trended &lt;- tourism_ts %&gt;%
+  fabletools::features(Trips, feasts::feat_stl) %&gt;%
+  filter(trend_strength == max(trend_strength))
+
+tourism_ts %&gt;%
+  inner_join(most_trended, by = c(&quot;State&quot;, &quot;Region&quot;, &quot;Purpose&quot;)) %&gt;%
+  ggplot(aes(x = Quarter, y = Trips)) + geom_line() +
+  facet_grid(vars(State, Region, Purpose))</code></pre>
+<p><img src="/post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/stl_trends_seasonal-1.png" width="672" /></p>
+<pre class="r"><code>tourism_features &lt;- tourism_ts %&gt;%
+  fabletools::features(Trips, fabletools::feature_set(pkgs = &quot;feasts&quot;))
+
+head(tourism_features)</code></pre>
+<pre><code>## # A tibble: 6 x 47
+##   Region State Purpose trend_strength seasonal_streng… seasonal_peak_y…
+##   &lt;chr&gt;  &lt;chr&gt; &lt;chr&gt;            &lt;dbl&gt;            &lt;dbl&gt;            &lt;dbl&gt;
+## 1 Adela… Sout… Busine…          0.451            0.380                3
+## 2 Adela… Sout… Holiday          0.541            0.601                1
+## 3 Adela… Sout… Other            0.743            0.189                2
+## 4 Adela… Sout… Visiti…          0.433            0.446                1
+## 5 Adela… Sout… Busine…          0.453            0.140                3
+## 6 Adela… Sout… Holiday          0.512            0.244                2
+## # … with 41 more variables: seasonal_trough_year &lt;dbl&gt;, spikiness &lt;dbl&gt;,
+## #   linearity &lt;dbl&gt;, curvature &lt;dbl&gt;, stl_e_acf1 &lt;dbl&gt;, stl_e_acf10 &lt;dbl&gt;,
+## #   acf1 &lt;dbl&gt;, acf10 &lt;dbl&gt;, diff1_acf1 &lt;dbl&gt;, diff1_acf10 &lt;dbl&gt;,
+## #   diff2_acf1 &lt;dbl&gt;, diff2_acf10 &lt;dbl&gt;, season_acf1 &lt;dbl&gt;, pacf5 &lt;dbl&gt;,
+## #   diff1_pacf5 &lt;dbl&gt;, diff2_pacf5 &lt;dbl&gt;, season_pacf &lt;dbl&gt;,
+## #   lambda_guerrero &lt;dbl&gt;, kpss_stat &lt;dbl&gt;, kpss_pvalue &lt;dbl&gt;,
+## #   pp_stat &lt;dbl&gt;, pp_pvalue &lt;dbl&gt;, ndiffs &lt;int&gt;, nsdiffs &lt;int&gt;,
+## #   bp_stat &lt;dbl&gt;, bp_pvalue &lt;dbl&gt;, lb_stat &lt;dbl&gt;, lb_pvalue &lt;dbl&gt;,
+## #   var_tiled_var &lt;dbl&gt;, var_tiled_mean &lt;dbl&gt;, shift_level_max &lt;dbl&gt;,
+## #   shift_level_index &lt;dbl&gt;, shift_var_max &lt;dbl&gt;, shift_var_index &lt;dbl&gt;,
+## #   shift_kl_max &lt;dbl&gt;, shift_kl_index &lt;dbl&gt;, spectral_entropy &lt;dbl&gt;,
+## #   n_crossing_points &lt;int&gt;, n_flat_spots &lt;int&gt;, coef_hurst &lt;dbl&gt;,
+## #   stat_arch_lm &lt;dbl&gt;</code></pre>
+<pre class="r"><code>features_matrix &lt;- tourism_features %&gt;%
+  select(-State, -Region, -Purpose) %&gt;%
+  data.matrix() %&gt;%
+  scale() 
+
+row.names(features_matrix) &lt;- paste0(tourism_features$State,&quot;/&quot;,tourism_features$Region,&quot;/&quot;,tourism_features$Purpose)
+
+
+##Silhouette Analysis
+sil_width &lt;- map_dbl(2:24, function(k){
+  model &lt;- cluster::pam(features_matrix, k = k)
+  model$silinfo$avg.width
+  
+})
+
+data.frame(k = 2:24, sil_width = sil_width) %&gt;%
+  ggplot(aes(x = k, y = sil_width)) +
+  geom_point() +
+  geom_line() +
+  scale_x_continuous(breaks = 2:24) +
+  labs(title = &quot;Silhouette Anaylsis for Optimal K&quot;)</code></pre>
+<p><img src="/post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/tourism_features_cluster-1.png" width="672" /></p>
+<pre class="r"><code>## Hierarchical clustering
+
+features_hc &lt;- hclust(dist(features_matrix, method = &quot;euclidean&quot;), method = &quot;complete&quot;)
+
+dendextend::color_branches(as.dendrogram(features_hc), k = 3) -&gt; features_dend
+
+plot(features_dend, leaflab = &quot;none&quot;)</code></pre>
+<p><img src="/post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/tourism_features_cluster-2.png" width="672" /></p>
+<pre class="r"><code>set.seed(1988)
+tourism_features %&gt;%
+  mutate(cluster = cutree(features_hc, k = 3)) -&gt; features_clust
+
+tourism_ts %&gt;%
+  inner_join(features_clust) %&gt;%
+  filter(cluster == 3) %&gt;%
+  mutate(Series = paste0(State,&quot;/&quot;,Region,&quot;/&quot;,Purpose)) %&gt;%
+  ggplot(aes(x = Quarter, y = Trips)) +
+  geom_line() +
+  labs(title = &quot;Outlying time series in HC space (Cluster 3)&quot;) +
+  facet_wrap(~Series,ncol = 1, scales = &quot;free&quot;)</code></pre>
+<p><img src="/post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/tourism_features_cluster-3.png" width="672" /></p>
+<pre class="r"><code>cluster_summary &lt;- features_clust %&gt;%
+  select(-State,-Region,-Purpose) %&gt;%
+  group_by(cluster) %&gt;%
+  summarise_all(mean) %&gt;%
+  pivot_longer(cols = -cluster) %&gt;%
+  pivot_wider(names_from = cluster,
+              values_from = value) 
+
+scaled &lt;- cluster_summary %&gt;%
+  select(`1`,`2`) %&gt;%
+  data.matrix() %&gt;%
+  scale()
+
+cluster_summary %&gt;%
+  select(-`3`) %&gt;%
+  cbind(scaled_abs_diff = abs(as.numeric(scaled[,2])-as.numeric(scaled[,1]))) %&gt;%
+  arrange(desc(scaled_abs_diff)) %&gt;%
+  head()</code></pre>
+<pre><code>##                name        1         2 scaled_abs_diff
+## 1         spikiness 31.25642 413.83932      0.17963726
+## 2   shift_var_index 41.50370  38.28125      0.16966425
+## 3 n_crossing_points 36.94815  39.75000      0.14419970
+## 4 shift_level_index 37.95556  49.46875      0.14195205
+## 5    shift_kl_index 33.64074  38.78125      0.12730849
+## 6         linearity 27.17881  34.06117      0.09652482</code></pre>
+<pre class="r"><code>tourism_ts %&gt;%
+  inner_join(features_clust) %&gt;%
+  autoplot(Trips) +
+  guides(color = F) +
+  facet_wrap(~cluster, ncol = 1) +
+  labs(title = &quot;Australia Trips Faceted by Cluster&quot;)</code></pre>
+<p><img src="/post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/tourism_features_cluster-4.png" width="672" /></p>
+<pre class="r"><code>tourism_ts %&gt;%
+  inner_join(features_clust) %&gt;%
+  group_by(cluster) %&gt;%
+  tsibble::index_by(Quarter) %&gt;%
+  summarise(Trips = mean(Trips)) %&gt;%
+  autoplot(Trips) +
+  labs(title = &quot;Average Trip Total by Cluster&quot;)</code></pre>
+<p><img src="/post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/tourism_features_cluster-5.png" width="672" /></p>
+<pre class="r"><code>## PCA Analysis
+
+
+features_pcs &lt;- tourism_features %&gt;%
+  select(-State, -Region, -Purpose) %&gt;%
+  prcomp(scale = TRUE) %&gt;%
+  broom::augment(tourism_features)
+
+
+features_pcs %&gt;% 
+  ggplot(aes(x=.fittedPC1, y=.fittedPC2, col = Purpose)) +
+  geom_point(size = 1.5) + 
+  theme(aspect.ratio=1)</code></pre>
+<p><img src="/post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/tourism_features_pca-1.png" width="672" /></p>
+<pre class="r"><code>features_pcs %&gt;% 
+  ggplot(aes(x=.fittedPC1, y=.fittedPC2, col = Purpose)) +
+  geom_point(aes(size = .fittedPC1 &gt; 11)) + 
+  scale_size_manual(values =c(1.5, 4), guide = F)+
+  theme(aspect.ratio=1)</code></pre>
+<p><img src="/post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/tourism_features_pca-2.png" width="672" /></p>
+<pre class="r"><code>outliers &lt;- features_pcs %&gt;%
+  filter(.fittedPC1 &gt; 11)
+
+outliers %&gt;%
+  left_join(tourism, by = c(&quot;State&quot;, &quot;Region&quot;, &quot;Purpose&quot;)) %&gt;%
+  mutate(Series = paste0(State,&quot;/&quot;,Region,&quot;/&quot;,Purpose)) %&gt;%
+  ggplot(aes(x = Quarter, y = Trips)) + 
+  geom_line() +
+  labs(title = &quot;Outlying time series in PC space&quot;) +
+  facet_wrap(~Series, ncol = 1, scales = &quot;free&quot;)</code></pre>
+<p><img src="/post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/tourism_features_pca-3.png" width="672" /></p>
+<pre class="r"><code>features_pcs %&gt;% 
+  inner_join(features_clust) %&gt;%
+  ggplot(aes(x=.fittedPC1, y=.fittedPC2, col = factor(cluster))) +
+  geom_point() + 
+  labs(color = &quot;Cluster&quot;) +
+  theme(aspect.ratio=1)</code></pre>
+<p><img src="/post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/tourism_features_pca_clust-1.png" width="672" /></p>
+<pre class="r"><code>features_pcs %&gt;% 
+  inner_join(features_clust) %&gt;%
+  ggplot(aes(x=.fittedPC1, y=.fittedPC2, col = Purpose)) +
+  geom_point() + 
+  scale_size_manual(values =c(1.5, 4), guide = F)+
+  facet_wrap(~cluster) +
+  labs(title = &quot;PC Space Plot Faceted by Cluster&quot;) +
+  theme(legend.position=&quot;bottom&quot;, aspect.ratio=1) </code></pre>
+<p><img src="/post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/tourism_features_pca_clust-2.png" width="672" /></p>
+</div>
