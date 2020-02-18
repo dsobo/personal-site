@@ -22,13 +22,13 @@
 
 &lt;div id=&#34;into-to-tidyverts&#34; class=&#34;section level2&#34;&gt;
 &lt;h2&gt;Into to Tidyverts&lt;/h2&gt;
-&lt;p&gt;Last month, I attended rstudio::conf 2020 and took &lt;a href=&#34;https://robjhyndman.com/&#34;&gt;Rob J Hyndman’s&lt;/a&gt; awesome Tidy Time Series and Forecasting in R workshop. During this workshop, Professor Hyndman highlighted functionality within the &lt;a href=&#34;https://tidyverts.org/&#34;&gt;Tidyverts&lt;/a&gt; packages for exploring and extracting features from time series datasets.Tidyverts is comprised of three main packages and works within the Tidyverse framework (i.e. piping and dplyr functions).&lt;/p&gt;
+&lt;p&gt;Last month, I attended rstudio::conf 2020 and took &lt;a href=&#34;https://robjhyndman.com/&#34;&gt;Rob J Hyndman’s&lt;/a&gt; awesome Tidy Time Series and Forecasting in R workshop. Professor Hyndman highlighted functionality within the &lt;a href=&#34;https://tidyverts.org/&#34;&gt;Tidyverts&lt;/a&gt; packages for exploring and extracting features from time series datasets.Tidyverts is currently comprised of three main packages and works within the Tidyverse framework (i.e. piping and dplyr functions).&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;&lt;strong&gt;Tsibble-&lt;/strong&gt; Makes data wrangling and formatting of time series data easier. Formats time series data into a “tsibble” R object so other packages within Tidyverts know how to handle it.&lt;/li&gt;
 &lt;li&gt;&lt;strong&gt;Feasts-&lt;/strong&gt; Used for extracting features from time series data. Has many useful functions for extracting statistics from a time series that can be used for exploratory analysis, model checking, and comparison.&lt;/li&gt;
 &lt;li&gt;&lt;strong&gt;Fable-&lt;/strong&gt; Simplifies the creation for forecasting models for time series data.&lt;/li&gt;
 &lt;/ul&gt;
-&lt;p&gt;I will review and expand on the exploratory data analysis techniques, primarily using tsibble and feasts, learned during the aforementioned forecasting workshop within this post. I plan to explore time series modeling with Fable in a seperate post.&lt;/p&gt;
+&lt;p&gt;I will review and expand on the exploratory data analysis techniques, primarily using tsibble and feasts, learned at rstudio::conf in this post. The workshop changed my perspective on how time series data can be explored, from a simplistic format with limited options (pretty much just line graphs) to a still growing discipline with room for creative solutions. Tidyverts lets you squeeze more insight from a simple time series than I thought possible.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div id=&#34;creating-a-tsibble-object&#34; class=&#34;section level2&#34;&gt;
 &lt;h2&gt;Creating a Tsibble Object&lt;/h2&gt;
@@ -43,7 +43,7 @@
 ## 4 1998-10-01 Adelaide South Australia Business  127.
 ## 5 1999-01-01 Adelaide South Australia Business  137.
 ## 6 1999-04-01 Adelaide South Australia Business  200.&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;This tibble has five columns, with one being a date, three being categorical groupings, and a final column providing our measurement of interest (Trips). Our first order of business is to make sure our date/time element, in this case the Quarter column, has the correct data type. Luckily the readr::read_csv function already handled this data type conversion when we imported our data. Next we must specify an index and key variables within the as_tsibble() function to make this a tsibble object. The index contains our date/time variable but it must be in correct interval format before being added. Here we are working with quarters represented by a single date. If we set the index equal to the Quarter variable before transforming it, our tsibble functions will assume the desired interval length is one day and three months of data is missing between observations. The tsibble package makes it easy to change this column from a date to a “qtr” data type using the yearquarter() function. Each variable that uniquely determines a time series we wish to measure should be specified using the “key” parameter.&lt;/p&gt;
+&lt;p&gt;This tibble has five columns, with one being a date, three being categorical groupings, and a final column providing our measurement of interest (Trips). Our first order of business is to make sure our date/time element, in this case the Quarter column, has the correct data type. Luckily the readr::read_csv function already handled this data type conversion upon importing the data. Next we must specify an index and key variables within the as_tsibble() function to make this a tsibble object. The index contains our date/time variable but it must be in correct interval format before being added. Here we are working with quarters represented by a single date. If we set the index equal to the Quarter variable before transforming it, our tsibble functions will assume the desired interval length is one day and three months of data is missing between observations. The tsibble package makes it easy to change this column from a date to a “qtr” data type using the yearquarter() function. Each variable that uniquely determines a time series we wish to measure should be specified using the “key” parameter.&lt;/p&gt;
 &lt;pre class=&#34;r&#34;&gt;&lt;code&gt;tourism_ts &amp;lt;- tourism %&amp;gt;%
   mutate(Quarter = tsibble::yearquarter(Quarter)) %&amp;gt;%
   tsibble::as_tsibble(index = Quarter, key = c(Region, State, Purpose)) 
@@ -59,7 +59,7 @@ head(tourism_ts)&lt;/code&gt;&lt;/pre&gt;
 ## 4 1998 Q4 Adelaide South Australia Business  127.
 ## 5 1999 Q1 Adelaide South Australia Business  137.
 ## 6 1999 Q2 Adelaide South Australia Business  200.&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;Inspecting the new object displays the key variables and shows the updated data type of the Quarter column. The functions within all of the Tidyverts packages are built to work with tsibble objects based on the index and key specification. The interval of the index column is automatically set and most functions will iterate over each key combination present in the dataset automatically. This makes it simple to visualize and run calculations on many different time series at once. If you worked with converting and using ts objects to perform similar analyses in the past, it is downright frustrating to see how simple it is within the Tidyverts framework.&lt;/p&gt;
+&lt;p&gt;Inspecting the new object displays the key variables and shows the updated data type of the Quarter column. The functions within all of the Tidyverts packages are built to work with tsibble objects based on the index and key specification. The interval of the index column is automatically set and most functions will iterate over each key combination present in the dataset by default. What you would typically use an apply or purrr function to achieve just happens automatically. This makes it simple to visualize and run calculations on many different time series at once. It’s almost frustrating to see how simple the Tidyverts framework makes time series analysis, especially if you ever worked with creating and working with ts objects in the past. It feels like cheating at data science.&lt;/p&gt;
 &lt;/div&gt;
 &lt;div id=&#34;visualizing-time-series&#34; class=&#34;section level2&#34;&gt;
 &lt;h2&gt;Visualizing Time Series&lt;/h2&gt;
@@ -98,16 +98,31 @@ holidays_ts %&amp;gt;%
 &lt;/div&gt;
 &lt;div id=&#34;subseries-plots&#34; class=&#34;section level3&#34;&gt;
 &lt;h3&gt;Subseries Plots&lt;/h3&gt;
+&lt;p&gt;Another useful plotting function is feasts::gg_subseries(). This will facet the entire series by a smaller period to allow you to see trends within those subsets. In the below example we can see that holiday trips to Victoria are clearly increasing at a much greater rate in the 1st and 4th quarters compared to the 2nd and 3rd.&lt;/p&gt;
 &lt;pre class=&#34;r&#34;&gt;&lt;code&gt;holidays_ts %&amp;gt;%
   filter(State == &amp;quot;Victoria&amp;quot;) %&amp;gt;%
   feasts::gg_subseries(Trips)&lt;/code&gt;&lt;/pre&gt;
 &lt;p&gt;&lt;img src=&#34;../../post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/gg_subseries-1.png&#34; width=&#34;672&#34; /&gt;&lt;/p&gt;
+&lt;p&gt;If you don’t filter, you guessed it, the graph is further faceted by the key combinations in the dataset to allow for more detailed visual comparison.&lt;/p&gt;
 &lt;pre class=&#34;r&#34;&gt;&lt;code&gt;holidays_ts %&amp;gt;%
   feasts::gg_subseries(Trips)&lt;/code&gt;&lt;/pre&gt;
 &lt;p&gt;&lt;img src=&#34;../../post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/gg_subseries_facet-1.png&#34; width=&#34;672&#34; /&gt;&lt;/p&gt;
 &lt;/div&gt;
 &lt;div id=&#34;calendar-plots&#34; class=&#34;section level3&#34;&gt;
 &lt;h3&gt;Calendar Plots&lt;/h3&gt;
+&lt;p&gt;Earo Wang’s &lt;a href=&#34;https://github.com/earowang/sugrrants&#34;&gt;sugrrants&lt;/a&gt; package is not a part of Tidyverts but it helps us create calendar plots that are just too pretty to be left out of this post.&lt;/p&gt;
+&lt;pre class=&#34;r&#34;&gt;&lt;code&gt;tsibbledata::vic_elec %&amp;gt;%
+  as_tibble %&amp;gt;%
+  mutate(Hour = lubridate::hour(Time)) %&amp;gt;%
+  filter(lubridate::year(Date) == 2013,
+         lubridate::month(Date) %in% c(4,5)) %&amp;gt;%
+  group_by(Date,Hour) %&amp;gt;%
+  summarise(Demand = sum(Demand)) %&amp;gt;%
+  ggplot(aes(x = Hour, y = Demand)) +
+  geom_line() +
+  sugrrants::facet_calendar(~ Date, ncol = 1) +
+  theme_bw()&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;img src=&#34;../../post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/calendar_hourly1-1.png&#34; width=&#34;672&#34; /&gt;&lt;/p&gt;
 &lt;pre class=&#34;r&#34;&gt;&lt;code&gt;calendar &amp;lt;- tsibbledata::vic_elec %&amp;gt;%
   filter(lubridate::year(Date) == 2013) %&amp;gt;%
   mutate(Hour = lubridate::hour(Time)) %&amp;gt;%
@@ -121,14 +136,30 @@ holidays_ts %&amp;gt;%
   geom_line()
   
 sugrrants::prettify(calendar, size = 3, label.padding = unit(0.15, &amp;quot;lines&amp;quot;))&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;&lt;img src=&#34;../../post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/calendar_hourly-1.png&#34; width=&#34;672&#34; /&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;../../post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/calendar_hourly2-1.png&#34; width=&#34;672&#34; /&gt;&lt;/p&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;div id=&#34;acf-plots&#34; class=&#34;section level2&#34;&gt;
 &lt;h2&gt;ACF Plots&lt;/h2&gt;
-&lt;pre class=&#34;r&#34;&gt;&lt;code&gt;vic_acf &amp;lt;- holidays_ts %&amp;gt;%
+&lt;pre class=&#34;r&#34;&gt;&lt;code&gt;holidays_ts %&amp;gt;%
   filter(State == &amp;quot;Victoria&amp;quot;) %&amp;gt;%
-  feasts::ACF(Trips, lag_max = 24) &lt;/code&gt;&lt;/pre&gt;
+  feasts::ACF(Trips, lag_max = 12) &lt;/code&gt;&lt;/pre&gt;
+&lt;pre&gt;&lt;code&gt;## # A tsibble: 12 x 3 [1Q]
+## # Key:       State [1]
+##    State      lag      acf
+##    &amp;lt;chr&amp;gt;    &amp;lt;lag&amp;gt;    &amp;lt;dbl&amp;gt;
+##  1 Victoria    1Q  0.00755
+##  2 Victoria    2Q -0.452  
+##  3 Victoria    3Q  0.0374 
+##  4 Victoria    4Q  0.828  
+##  5 Victoria    5Q -0.0305 
+##  6 Victoria    6Q -0.463  
+##  7 Victoria    7Q  0.0289 
+##  8 Victoria    8Q  0.730  
+##  9 Victoria    9Q -0.0735 
+## 10 Victoria   10Q -0.442  
+## 11 Victoria   11Q -0.00197
+## 12 Victoria   12Q  0.660&lt;/code&gt;&lt;/pre&gt;
 &lt;pre class=&#34;r&#34;&gt;&lt;code&gt;holidays_ts %&amp;gt;%
   feasts::ACF(Trips) %&amp;gt;%
   autoplot()&lt;/code&gt;&lt;/pre&gt;
