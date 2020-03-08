@@ -168,7 +168,7 @@ holidays_ts %&amp;gt;%
 &lt;/div&gt;
 &lt;div id=&#34;calendar-plots&#34; class=&#34;section level3&#34;&gt;
 &lt;h3&gt;Calendar Plots&lt;/h3&gt;
-&lt;p&gt;Earo Wang’s &lt;a href=&#34;https://github.com/earowang/sugrrants&#34;&gt;sugrrants&lt;/a&gt; package is not a part of Tidyverts but it helps us create calendar plots that are just too pretty to be left out of this post.&lt;/p&gt;
+&lt;p&gt;Earo Wang’s &lt;a href=&#34;https://github.com/earowang/sugrrants&#34;&gt;sugrrants&lt;/a&gt; package is not a part of Tidyverts but it helps us create calendar plots that are just too pretty to be left out of this post. Since this is not part of tidyverts it actually is easier to manipulate the data as a tibble. There are two flavors of this plot shown below. The second is particularly useful if you are trying to show more than a few months worth of data in a calendar format.&lt;/p&gt;
 &lt;pre class=&#34;r&#34;&gt;&lt;code&gt;tsibbledata::vic_elec %&amp;gt;%
   as_tibble %&amp;gt;%
   mutate(Hour = lubridate::hour(Time)) %&amp;gt;%
@@ -176,29 +176,36 @@ holidays_ts %&amp;gt;%
          lubridate::month(Date) %in% c(4,5)) %&amp;gt;%
   group_by(Date,Hour) %&amp;gt;%
   summarise(Demand = sum(Demand)) %&amp;gt;%
-  ggplot(aes(x = Hour, y = Demand)) +
+  mutate(Weekend = if_else(lubridate::wday(Date)  %in% c(1,7), &amp;quot;Weekend&amp;quot;, &amp;quot;Weekday&amp;quot;)) %&amp;gt;%
+  ggplot(aes(x = Hour, y = Demand, col = Weekend)) +
   geom_line() +
   sugrrants::facet_calendar(~ Date, ncol = 1) +
-  theme_bw()&lt;/code&gt;&lt;/pre&gt;
+  theme_bw() +
+  theme(legend.position = &amp;quot;bottom&amp;quot;)&lt;/code&gt;&lt;/pre&gt;
 &lt;p&gt;&lt;img src=&#34;./post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/calendar_hourly1-1.png&#34; width=&#34;672&#34; /&gt;&lt;/p&gt;
 &lt;pre class=&#34;r&#34;&gt;&lt;code&gt;calendar &amp;lt;- tsibbledata::vic_elec %&amp;gt;%
   filter(lubridate::year(Date) == 2013) %&amp;gt;%
   mutate(Hour = lubridate::hour(Time)) %&amp;gt;%
+  group_by(Date,Hour) %&amp;gt;%
+  summarise(Demand = sum(Demand)) %&amp;gt;%
+  mutate(Weekend = if_else(lubridate::wday(Date)  %in% c(1,7), &amp;quot;Weekend&amp;quot;, &amp;quot;Weekday&amp;quot;)) %&amp;gt;%
   sugrrants::frame_calendar(
     x = Hour, 
     y = Demand, 
     date = Date, 
     nrow = 4
   ) %&amp;gt;%
-  ggplot(aes(x = .Hour, y = .Demand, group = Date)) +
-  geom_line()
-  
+  ggplot(aes(x = .Hour, y = .Demand, group = Date, col = Weekend)) +
+  geom_line() +
+  theme(legend.position = &amp;quot;bottom&amp;quot;)
+
 sugrrants::prettify(calendar, size = 3, label.padding = unit(0.15, &amp;quot;lines&amp;quot;))&lt;/code&gt;&lt;/pre&gt;
 &lt;p&gt;&lt;img src=&#34;./post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/calendar_hourly2-1.png&#34; width=&#34;672&#34; /&gt;&lt;/p&gt;
 &lt;/div&gt;
 &lt;/div&gt;
 &lt;div id=&#34;acf-plots&#34; class=&#34;section level2&#34;&gt;
 &lt;h2&gt;ACF Plots&lt;/h2&gt;
+&lt;p&gt;Auto-corrections of lagged values for a time series can provide valuable insight in to seasonal or cyclical trends present in the data. The feasts package a an ACF() function that will provide these auto-correlation values for a tsibble object.&lt;/p&gt;
 &lt;pre class=&#34;r&#34;&gt;&lt;code&gt;holidays_ts %&amp;gt;%
   filter(State == &amp;quot;Victoria&amp;quot;) %&amp;gt;%
   feasts::ACF(Trips, lag_max = 12) &lt;/code&gt;&lt;/pre&gt;
@@ -218,10 +225,14 @@ sugrrants::prettify(calendar, size = 3, label.padding = unit(0.15, &amp;quot;lin
 ## 10 Victoria   10Q -0.442  
 ## 11 Victoria   11Q -0.00197
 ## 12 Victoria   12Q  0.660&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Feeding these values into the autoplot() function will create an ACF plot that includes a confidence band to help determine significant autocorrelations. Time series with auto-correlations outside of the confidnce bands at constant intervals indicate seasonality. Creating ACF plots on the residuals left over from a forecast can help determing if there are remaining patterns in the data that your model is not accounting for.&lt;/p&gt;
 &lt;pre class=&#34;r&#34;&gt;&lt;code&gt;holidays_ts %&amp;gt;%
   feasts::ACF(Trips) %&amp;gt;%
   autoplot()&lt;/code&gt;&lt;/pre&gt;
 &lt;p&gt;&lt;img src=&#34;./post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/acf2-1.png&#34; width=&#34;672&#34; /&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div id=&#34;decompositions&#34; class=&#34;section level2&#34;&gt;
+&lt;h2&gt;Decompositions&lt;/h2&gt;
 &lt;pre class=&#34;r&#34;&gt;&lt;code&gt;vic_dcmp &amp;lt;- holidays_ts %&amp;gt;%
   filter(State == &amp;quot;Victoria&amp;quot;) %&amp;gt;%
   fabletools::model(feasts::STL(Trips)) %&amp;gt;%
@@ -248,11 +259,6 @@ head(vic_dcmp)&lt;/code&gt;&lt;/pre&gt;
   autoplot(Trips) +
   autolayer(vic_dcmp, trend, col = &amp;#39;blue&amp;#39;)&lt;/code&gt;&lt;/pre&gt;
 &lt;p&gt;&lt;img src=&#34;./post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/combining-1.png&#34; width=&#34;672&#34; /&gt;&lt;/p&gt;
-&lt;p&gt;&lt;img src=&#34;./post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/combining_all_dcmp-1.png&#34; width=&#34;672&#34; /&gt;&lt;/p&gt;
-&lt;pre class=&#34;r&#34;&gt;&lt;code&gt;## Look at subseries of the seasonal pattern
-feasts::gg_subseries(holiday_dcmp, season_year)&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;&lt;img src=&#34;./post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/combining_all_sub-1.png&#34; width=&#34;672&#34; /&gt;&lt;/p&gt;
-&lt;p&gt;&lt;img src=&#34;./post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/combining_all-1.png&#34; width=&#34;672&#34; /&gt;&lt;/p&gt;
 &lt;pre class=&#34;r&#34;&gt;&lt;code&gt;tourism_stl_feats &amp;lt;- tourism_ts %&amp;gt;%
   fabletools::features(Trips, features = feasts::feat_stl) 
 

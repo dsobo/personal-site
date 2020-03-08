@@ -148,7 +148,7 @@ holidays_ts %>%
 
 ### Calendar Plots
 
-Earo Wang's [sugrrants](https://github.com/earowang/sugrrants) package is not a part of Tidyverts but it helps us create calendar plots that are just too pretty to be left out of this post.
+Earo Wang's [sugrrants](https://github.com/earowang/sugrrants) package is not a part of Tidyverts but it helps us create calendar plots that are just too pretty to be left out of this post. Since this is not part of tidyverts it actually is easier to manipulate the data as a tibble. There are two flavors of this plot shown below. The second is particularly useful if you are trying to show more than a few months worth of data in a calendar format.
 
 ```{r calendar_hourly1, include=TRUE, echo = TRUE, fig.height=10}
 
@@ -159,10 +159,12 @@ tsibbledata::vic_elec %>%
          lubridate::month(Date) %in% c(4,5)) %>%
   group_by(Date,Hour) %>%
   summarise(Demand = sum(Demand)) %>%
-  ggplot(aes(x = Hour, y = Demand)) +
+  mutate(Weekend = if_else(lubridate::wday(Date)  %in% c(1,7), "Weekend", "Weekday")) %>%
+  ggplot(aes(x = Hour, y = Demand, col = Weekend)) +
   geom_line() +
   sugrrants::facet_calendar(~ Date, ncol = 1) +
-  theme_bw()
+  theme_bw() +
+  theme(legend.position = "bottom")
 
 ```
 
@@ -171,20 +173,27 @@ tsibbledata::vic_elec %>%
 calendar <- tsibbledata::vic_elec %>%
   filter(lubridate::year(Date) == 2013) %>%
   mutate(Hour = lubridate::hour(Time)) %>%
+  group_by(Date,Hour) %>%
+  summarise(Demand = sum(Demand)) %>%
+  mutate(Weekend = if_else(lubridate::wday(Date)  %in% c(1,7), "Weekend", "Weekday")) %>%
   sugrrants::frame_calendar(
     x = Hour, 
     y = Demand, 
     date = Date, 
     nrow = 4
   ) %>%
-  ggplot(aes(x = .Hour, y = .Demand, group = Date)) +
-  geom_line()
-  
+  ggplot(aes(x = .Hour, y = .Demand, group = Date, col = Weekend)) +
+  geom_line() +
+  theme(legend.position = "bottom")
+
 sugrrants::prettify(calendar, size = 3, label.padding = unit(0.15, "lines"))
+
 
 ```
 
 ## ACF Plots
+
+Auto-corrections of lagged values for a time series can provide valuable insight in to seasonal or cyclical trends present in the data. The feasts package a an ACF() function that will provide these auto-correlation values for a tsibble object. 
 
 ```{r acf1, include=TRUE, echo = TRUE}
 
@@ -194,6 +203,8 @@ holidays_ts %>%
 
 ```
 
+Feeding these values into the autoplot() function will create an ACF plot that includes a confidence band to help determine significant autocorrelations. Time series with auto-correlations outside of the confidnce bands at constant intervals indicate seasonality. Creating ACF plots on the residuals left over from a forecast can help determing if there are remaining patterns in the data that your model is not accounting for. 
+
 ```{r acf2, include=TRUE, echo = TRUE, fig.height=10}
 
 holidays_ts %>%
@@ -202,6 +213,10 @@ holidays_ts %>%
 
 
 ```
+
+## Decompositions
+
+
 
 ```{r dcmp, include=TRUE, echo = TRUE}
 
@@ -233,40 +248,6 @@ holidays_ts %>%
 
 ```
 
-```{r combining_all_dcmp, include=TRUE, echo = FALSE, fig.height=10}
-
-## Decomposition of all states
-
-holiday_dcmp <- holidays_ts %>%
-  fabletools::model(feasts::STL(Trips)) %>%
-  fabletools::components() 
-
-autoplot(holiday_dcmp)   +
-  labs(col = "") +
-  theme(legend.position="bottom") +
-  guides(col=guide_legend(ncol=2)) 
-
-```
-
-```{r combining_all_sub, include=TRUE, echo = TRUE, fig.height=10}
-
-## Look at subseries of the seasonal pattern
-feasts::gg_subseries(holiday_dcmp, season_year)
-
-```
-
-
-```{r combining_all, include=TRUE, echo = FALSE}
-
-## Combine actual data with decomposition trend
-holidays_ts %>%
-  autoplot(Trips, alpha = .4) +
-  autolayer(holiday_dcmp, trend, scale_bars = F) +
-  labs(col = "") +
-  theme(legend.position="bottom") +
-  guides(col=guide_legend(ncol=2)) 
-
-```
 
 ```{r stl_feats, include=TRUE, echo = TRUE}
 
