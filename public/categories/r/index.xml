@@ -248,10 +248,19 @@ head(tourism_features)&lt;/code&gt;&lt;/pre&gt;
 ## #   shift_kl_max &amp;lt;dbl&amp;gt;, shift_kl_index &amp;lt;dbl&amp;gt;, spectral_entropy &amp;lt;dbl&amp;gt;,
 ## #   n_crossing_points &amp;lt;int&amp;gt;, n_flat_spots &amp;lt;int&amp;gt;, coef_hurst &amp;lt;dbl&amp;gt;,
 ## #   stat_arch_lm &amp;lt;dbl&amp;gt;&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;Performing a silhouette analysis reveals an optimal K value of 3 for clustering. A dendrogram of our hierarchical clustering results using Euclidean distance measurements is below.&lt;/p&gt;
-&lt;p&gt;&lt;img src=&#34;../../post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/tourism_features_cluster-1.png&#34; width=&#34;672&#34; /&gt;&lt;img src=&#34;../../post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/tourism_features_cluster-2.png&#34; width=&#34;672&#34; /&gt;&lt;/p&gt;
-&lt;p&gt;The red cluster contains only 2 time series from our original data set that were different enough to necessiate their own cluster. Plotting these reveals they have irregular looking seasonality and strong positive trends overall.&lt;/p&gt;
+&lt;p&gt;Performing a silhouette analysis reveals an optimal K value of 3 for clustering.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;../../post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/sillouhette%20-1.png&#34; width=&#34;672&#34; /&gt;&lt;/p&gt;
+&lt;p&gt;A dendrogram of the resulting clusters shows our three clusters.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;../../post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/clustering%20-1.png&#34; width=&#34;672&#34; /&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div id=&#34;red-cluster&#34; class=&#34;section level3&#34;&gt;
+&lt;h3&gt;Red Cluster&lt;/h3&gt;
+&lt;p&gt;The red cluster only contains 2 time series from our original dataset. This means they were different enough from all other series to necessiate their own cluster. Plotting these reveals they have irregular looking seasonality and a positive trend overall.&lt;/p&gt;
 &lt;p&gt;&lt;img src=&#34;../../post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/tourism_cluster_3-1.png&#34; width=&#34;672&#34; /&gt;&lt;img src=&#34;../../post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/tourism_cluster_3-2.png&#34; width=&#34;672&#34; /&gt;&lt;img src=&#34;../../post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/tourism_cluster_3-3.png&#34; width=&#34;672&#34; /&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div id=&#34;red-and-green-clusters&#34; class=&#34;section level3&#34;&gt;
+&lt;h3&gt;Red and Green Clusters&lt;/h3&gt;
+&lt;p&gt;The other two larger clusters contain more time series. Lets look at how they most differ from each other. The below shows the top features with the largest difference between the two clusters. Spikiness is the number one differentiating feature between our 2 larger clusters.&lt;/p&gt;
 &lt;pre&gt;&lt;code&gt;##                name        1         2 scaled_abs_diff
 ## 1         spikiness 31.25642 413.83932      0.17963726
 ## 2   shift_var_index 41.50370  38.28125      0.16966425
@@ -259,55 +268,23 @@ head(tourism_features)&lt;/code&gt;&lt;/pre&gt;
 ## 4 shift_level_index 37.95556  49.46875      0.14195205
 ## 5    shift_kl_index 33.64074  38.78125      0.12730849
 ## 6         linearity 27.17881  34.06117      0.09652482&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;&lt;img src=&#34;../../post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/tourism_cluster_others-1.png&#34; width=&#34;672&#34; /&gt;&lt;img src=&#34;../../post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/tourism_cluster_others-2.png&#34; width=&#34;672&#34; /&gt;&lt;/p&gt;
-&lt;pre class=&#34;r&#34;&gt;&lt;code&gt;## PCA Analysis
-
-
-features_pcs &amp;lt;- tourism_features %&amp;gt;%
-  select(-State, -Region, -Purpose) %&amp;gt;%
-  prcomp(scale = TRUE) %&amp;gt;%
-  broom::augment(tourism_features)
-
-
-features_pcs %&amp;gt;% 
-  ggplot(aes(x=.fittedPC1, y=.fittedPC2, col = Purpose)) +
-  geom_point(size = 1.5) + 
-  theme(aspect.ratio=1)&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;&lt;img src=&#34;../../post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/tourism_features_pca-1.png&#34; width=&#34;672&#34; /&gt;&lt;/p&gt;
-&lt;pre class=&#34;r&#34;&gt;&lt;code&gt;features_pcs %&amp;gt;% 
-  ggplot(aes(x=.fittedPC1, y=.fittedPC2, col = Purpose)) +
-  geom_point(aes(size = .fittedPC1 &amp;gt; 11)) + 
-  scale_size_manual(values =c(1.5, 4), guide = F)+
-  theme(aspect.ratio=1)&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;&lt;img src=&#34;../../post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/tourism_features_pca-2.png&#34; width=&#34;672&#34; /&gt;&lt;/p&gt;
-&lt;pre class=&#34;r&#34;&gt;&lt;code&gt;outliers &amp;lt;- features_pcs %&amp;gt;%
-  filter(.fittedPC1 &amp;gt; 11)
-
-outliers %&amp;gt;%
-  left_join(tourism, by = c(&amp;quot;State&amp;quot;, &amp;quot;Region&amp;quot;, &amp;quot;Purpose&amp;quot;)) %&amp;gt;%
-  mutate(Series = paste0(State,&amp;quot;/&amp;quot;,Region,&amp;quot;/&amp;quot;,Purpose)) %&amp;gt;%
-  ggplot(aes(x = Quarter, y = Trips)) + 
-  geom_line() +
-  labs(title = &amp;quot;Outlying time series in PC space&amp;quot;) +
-  facet_wrap(~Series, ncol = 1, scales = &amp;quot;free&amp;quot;)&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;&lt;img src=&#34;../../post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/tourism_features_pca-3.png&#34; width=&#34;672&#34; /&gt;&lt;/p&gt;
-&lt;pre class=&#34;r&#34;&gt;&lt;code&gt;features_pcs %&amp;gt;% 
-  inner_join(features_clust) %&amp;gt;%
-  ggplot(aes(x=.fittedPC1, y=.fittedPC2, col = factor(cluster))) +
-  geom_point() + 
-  labs(color = &amp;quot;Cluster&amp;quot;) +
-  theme(aspect.ratio=1)&lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;&lt;img src=&#34;../../post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/tourism_features_pca_clust-1.png&#34; width=&#34;672&#34; /&gt;&lt;/p&gt;
-&lt;pre class=&#34;r&#34;&gt;&lt;code&gt;features_pcs %&amp;gt;% 
-  inner_join(features_clust) %&amp;gt;%
-  ggplot(aes(x=.fittedPC1, y=.fittedPC2, col = Purpose)) +
-  geom_point() + 
-  scale_size_manual(values =c(1.5, 4), guide = F)+
-  facet_wrap(~cluster) +
-  labs(title = &amp;quot;PC Space Plot Faceted by Cluster&amp;quot;) +
-  theme(legend.position=&amp;quot;bottom&amp;quot;, aspect.ratio=1) &lt;/code&gt;&lt;/pre&gt;
-&lt;p&gt;&lt;img src=&#34;../../post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/tourism_features_pca_clust-2.png&#34; width=&#34;672&#34; /&gt;&lt;/p&gt;
+&lt;p&gt;If we facet by cluster we can plot the individual time series for each cluster. When all series are plotted together it is difficult to distinguish their features but if we look at the average trip totals for each cluster the differences become clearer. The red cluster contains our two outliers that we looked at earler and make up fewer trips on average than the other two clusters. The green cluster contains more seasonal series with greater spikiness and little overall trend change. The final blue cluster has less consistent seasonality but a stronger overall positive trend.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;../../post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/tourism_cluster_all-1.png&#34; width=&#34;672&#34; /&gt;&lt;img src=&#34;../../post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/tourism_cluster_all-2.png&#34; width=&#34;672&#34; /&gt;&lt;/p&gt;
 &lt;/div&gt;
+&lt;div id=&#34;pca-analysis&#34; class=&#34;section level3&#34;&gt;
+&lt;h3&gt;PCA Analysis&lt;/h3&gt;
+&lt;p&gt;Principal component analysis on the extracted time series features is another useful method for finding insights. Below is a of all time series with the PC1 and PC2 values on each axis. This allows us to see how different specific series are from each other in principal component space. We can see a clear grouping of green dots at the top of plot representing holiday trips. I increased the size of the three series that seem furthest away from the others.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;../../post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/tourism_features_pca-1.png&#34; width=&#34;672&#34; /&gt;&lt;/p&gt;
+&lt;p&gt;If we isolate these three outliers we can see that two of them were in our red cluster above. The third series represents holidays in Western Australia with high seasonality and a positive trend. These are the three series that are most unique based on the extracted features and PC analysis.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;../../post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/pca_outliers-1.png&#34; width=&#34;672&#34; /&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;/div&gt;
+&lt;div id=&#34;putting-it-all-together&#34; class=&#34;section level2&#34;&gt;
+&lt;h2&gt;Putting It All Together&lt;/h2&gt;
+&lt;p&gt;We can combine our PCA and cluster analysis we can see all individual cluster members in PC space. This shows a nice picture of how different clusters are represented by the first two prinicpal components and which members lie on the outskirts of a particular cluster. The few green cluster 2 members that lie within the larger red cluster 1 group are prime candidates for further investigation.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;../../post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/tourism_features_pca_clust-1.png&#34; width=&#34;672&#34; /&gt;&lt;/p&gt;
+&lt;p&gt;If we facet our PC plot by cluster we can retain the purpose category as the point color. This shows the first cluster comprised of a mix of all travel purposes, the second cluster made primarily of holiday travel, and the two previously identified outliers in the third cluster. The two business series present in cluster 2 are interesting points that could be further investigated.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;../../post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/tourism_features_pca_clust_facet-1.png&#34; width=&#34;672&#34; /&gt;&lt;/p&gt;
 &lt;/div&gt;
 </description>
     </item>
