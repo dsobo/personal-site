@@ -30,7 +30,7 @@ tourism <- read_csv(here::here("static","data","tourism.csv"))
 
 ```
 
-## Into to Tidyverts
+## Intro to Tidyverts
 
 Last month, I attended rstudio::conf 2020 and took [Rob J Hyndman's](https://robjhyndman.com/) awesome Tidy Time Series and Forecasting in R workshop. Professor Hyndman highlighted functionality within the [Tidyverts](https://tidyverts.org/) packages for exploring and extracting features from time series datasets.Tidyverts is currently comprised of three main packages and works within the Tidyverse framework (i.e. piping and dplyr functions).
 
