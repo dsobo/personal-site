@@ -1,0 +1,168 @@
+---
+title: Finding COVID-19 Clusters Using R
+author: Dennis Sobolewski
+date: '2020-05-08'
+slug: spatial-autocorrelation-tests-for-covid-19
+categories:
+  - R
+tags:
+  - geospatial
+  - sf
+  - autocorrelation
+subtitle: ''
+summary: ''
+authors: []
+lastmod: '2020-05-08T15:23:52-05:00'
+featured: no
+image:
+  caption: ''
+  focal_point: ''
+  preview_only: no
+projects: []
+---
+
+
+
+<p>COVID-19 data analyses are all the rage at the moment, with COVID datasets being made publicly available at the city, state, and national level. It’s an awesome example of how open data can lead to a better understanding of the world around us. And, the best part is, much of the actual analyses are free! I decided to take a stab it and contribute to the public COVID discorse with my own analysis below.</p>
+<pre class="r"><code>phila_covid_sf %&gt;%
+ggplot() +
+geom_sf(aes(fill = cases_per_cap)) +
+scale_fill_gradient(low = &quot;#FFF5F0&quot; , high = &quot;#A50F15&quot;, name = &quot;Cases Per 1000&quot;) +
+labs(title = &quot;Philadelphia COVID-19 Cases Per Capita&quot;)</code></pre>
+<p><img src="/post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/phila_geo-1.png" width="672" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>library(spdep)
+
+## Autocorrelation tests for phila
+phila_sp &lt;- as(phila_covid_sf, &quot;Spatial&quot;)
+phila_nb &lt;- poly2nb(phila_sp, queen = T, row.names = phila_sp$zip)
+coords &lt;- coordinates(phila_sp)
+
+plot(phila_sp)
+plot(phila_nb, coords = coords, add = T, col = &quot;#F78764&quot;)</code></pre>
+<p><img src="/post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/phila_queen-1.png" width="672" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>## EBI Morans I
+set.seed(1988)
+phila_moran_mc &lt;- EBImoran.mc(n = phila_sp$cases, 
+                              x = phila_sp$pop, 
+                              listw = nb2listw(phila_nb, style = &quot;W&quot;),
+                              nsim = 9999)
+
+phila_moran_mc</code></pre>
+<pre><code>## 
+##  Monte-Carlo simulation of Empirical Bayes Index (mean subtracted)
+## 
+## data:  cases: phila_sp$cases, risk population: phila_sp$pop
+## weights: nb2listw(phila_nb, style = &quot;W&quot;)
+## number of simulations + 1: 10000
+## 
+## statistic = 0.07143, observed rank = 8479, p-value = 0.1521
+## alternative hypothesis: greater</code></pre>
+<pre class="r"><code>plot(phila_moran_mc)</code></pre>
+<p><img src="/post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/phila_mgl-1.png" width="672" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>phila_lc_moran &lt;- localmoran(phila_sp$cases_per_cap, 
+                             listw = nb2listw(phila_nb, style = &quot;W&quot;), 
+                             p.adjust.method = &quot;bonferroni&quot;,
+                             alternative = &quot;two.sided&quot;)
+
+phila_lc_moran_tidy &lt;- broom::tidy(phila_lc_moran) %&gt;%
+  rename(p_value = 6 ,zip = .rownames, morans_i = 2, z_score = 5) %&gt;%
+  select(zip, morans_i, z_score, p_value) %&gt;%
+  mutate(morans_i = round(morans_i,3),
+         z_score = round(z_score,3),
+         p_value = round(p_value,3),
+         lag_cases_per_cap = round(lag.listw(var = phila_sp$cases_per_cap, x =  nb2listw(phila_nb, style = &quot;W&quot;)),3),
+         lag_mean = round(mean(lag.listw(var = phila_sp$cases_per_cap, x =  nb2listw(phila_nb, style = &quot;W&quot;))),3)
+         )</code></pre>
+<pre class="r"><code>head(phila_lc_moran_tidy)</code></pre>
+<pre><code>## # A tibble: 6 x 6
+##   zip   morans_i z_score p_value lag_cases_per_cap lag_mean
+##   &lt;chr&gt;    &lt;dbl&gt;   &lt;dbl&gt;   &lt;dbl&gt;             &lt;dbl&gt;    &lt;dbl&gt;
+## 1 19123   -1.78    -5.24   0                  8.71     11.2
+## 2 19127    1.92     2.05   0.081              6.89     11.2
+## 3 19137    0.891    1.70   0.352              9.25     11.2
+## 4 19106   -0.84    -1.53   0.506             13.6      11.2
+## 5 19134    0.570    1.46   0.866              8.24     11.2
+## 6 19154   -0.656   -1.18   0.944             14.4      11.2</code></pre>
+<p><img src="/post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/phila_mlc_plot-1.png" width="672" style="display: block; margin: auto;" /></p>
+<p><img src="/post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/phila_mlc_plot_sf-1.png" width="672" style="display: block; margin: auto;" /></p>
+<p><img src="/post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/morans_gl-1.png" width="672" style="display: block; margin: auto;" /><img src="/post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/morans_gl-2.png" width="672" style="display: block; margin: auto;" /><img src="/post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/morans_gl-3.png" width="672" style="display: block; margin: auto;" /></p>
+<p><img src="/post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/morans_local-1.png" width="672" style="display: block; margin: auto;" /><img src="/post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/morans_local-2.png" width="672" style="display: block; margin: auto;" /><img src="/post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/morans_local-3.png" width="672" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>##Functional Programming version
+
+#function to create global moran density plots
+global_morans_plot &lt;- function(data, loc){
+  
+  tibble::enframe(data$res) %&gt;%
+    ggplot(aes(x = value)) +
+    geom_line(stat = &quot;density&quot;) +
+    geom_vline(xintercept = data$statistic, col = &quot;red&quot;) +
+    annotate(geom = &quot;text&quot;,x = .25, y = 1.5, label = paste0(&quot;P-Value: &quot;,data$p.value)) +
+    labs(title = paste0(&quot;Density Plot of Permutation Outcomes: &quot;,loc),
+         subtitle = &quot;Monte-Carlo simulation of Empirical Bayes Index (mean subtracted)&quot;,
+         x = &quot;Test Statistic&quot;, 
+         y = &quot;Density&quot;)
+  
+}
+
+#function to create tidy local morans tibble
+local_morans_tidy &lt;- function(lm, sp, sf){
+  
+broom::tidy(lm) %&gt;%
+    rename(p_value = 6 ,zip = .rownames, morans_i = 2, z_score = 5) %&gt;%
+    inner_join(sf, by = c(&quot;zip&quot;=&quot;zip&quot;)) %&gt;%
+    mutate(lag_cases_per_cap = spdep::lag.listw(var = sp$cases_per_cap, x = spdep::nb2listw(spdep::poly2nb(sp,queen = T))),
+           lag_mean = mean(lag_cases_per_cap),
+           cases_mean = mean(lag_cases_per_cap),
+           quad = case_when(
+             cases_per_cap &lt; cases_mean &amp; lag_cases_per_cap &lt; lag_mean ~ &quot;Low-Low&quot;,
+             cases_per_cap &lt; cases_mean &amp; lag_cases_per_cap &gt;= lag_mean ~ &quot;Low-High&quot;,
+             cases_per_cap &gt;= cases_mean &amp; lag_cases_per_cap &lt; lag_mean ~ &quot;High-Low&quot;,
+             cases_per_cap &gt;= cases_mean &amp; lag_cases_per_cap &gt;= lag_mean ~ &quot;High-High&quot;
+           ))
+
+  
+}
+
+
+## Function to create local morans plots
+local_morans_plots &lt;- function(lm_tidied, loc){
+  
+  ggplot() +
+    geom_sf(data = sf::st_as_sf(lm_tidied)) +
+    geom_sf(data = sf::st_as_sf(lm_tidied) %&gt;% filter(p_value &lt;= .1), aes(fill = quad)) +
+    scale_fill_manual(values = c(&quot;Low-Low&quot;=&quot;#4DAF4A&quot; ,&quot;Low-High&quot;=&quot;#377EB8&quot;,&quot;High-Low&quot;=&quot;#FF7F00&quot;,&quot;High-High&quot;=&quot;#E41A1C&quot;)) +
+    labs(title = paste0(loc,&quot; Significant COVID-19 Clustering&quot;), x = &quot;&quot;, y = &quot;&quot;, fill = &quot;&quot;)
+  
+  
+}
+
+#sombine sf objects into a tibble with nested lists
+covid_tibble &lt;- tibble(
+  location = c(&quot;San Francisco&quot;, &quot;Philadelphia&quot;,&quot;Chicago&quot;),
+  covid_sf = list(sf_covid_sf,
+                  phila_covid_sf, 
+                  chi_covid_sf)
+)
+
+
+## Create a tibble holding results and plots for all tests
+morans_results &lt;- covid_tibble %&gt;%
+  ##perform global morans I calculation with MC simulations
+  mutate(
+    covid_sp = map(covid_sf, ~as(., &quot;Spatial&quot;)),    ##create sp object
+    global_morans = map(covid_sp, ~ spdep::EBImoran.mc(n = .$cases,
+                                                       x = .$pop,
+                                                       listw = spdep::nb2listw(spdep::poly2nb(.,queen = T, row.names = $zip)),
+                                                       nsim = 9999,
+                                                       alternative = &quot;two.sided&quot;)),     ##run global morans I test
+    global_morans_tidied = map(global_morans, broom::tidy),    ##Create output plots
+    global_moran_plots = map2(global_morans,location,global_morans_plot)) %&gt;%   #perform local morans I calculations
+ ##Perform local morans I calculations
+  mutate(
+    local_morans = map(covid_sp, ~ spdep::localmoran(x = .$cases_per_cap,
+                                                     listw = spdep::nb2listw(spdep::poly2nb(.,queen = T, row.names = .$zip)),
+                                                     p.adjust.method = &quot;bonferroni&quot;,
+                                                     alternative = &quot;two.sided&quot;)),    ##run local morans I 
+    local_morans_tidied = pmap(list(local_morans, covid_sp, covid_sf), local_morans_tidy),    ##tidy the local morans I output
+    local_morans_plots = map2(local_morans_tidied,location,local_morans_plots)    ##Create output plots
+         )</code></pre>

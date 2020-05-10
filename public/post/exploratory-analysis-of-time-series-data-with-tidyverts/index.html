@@ -28,7 +28,7 @@
   
     
   
-  <meta name="description" content="Into to Tidyverts Last month, I attended rstudio::conf 2020 and took Rob J Hyndman’s awesome Tidy Time Series and Forecasting in R workshop. Professor Hyndman highlighted functionality within the Tidyverts packages for exploring and extracting features from time series datasets.Tidyverts is currently comprised of three main packages and works within the Tidyverse framework (i.e. piping and dplyr functions).
+  <meta name="description" content="Intro to Tidyverts Last month, I attended rstudio::conf 2020 and took Rob J Hyndman’s awesome Tidy Time Series and Forecasting in R workshop. Professor Hyndman highlighted functionality within the Tidyverts packages for exploring and extracting features from time series datasets.Tidyverts is currently comprised of three main packages and works within the Tidyverse framework (i.e. piping and dplyr functions).
  Tsibble- Makes data wrangling and formatting of time series data easier.">
 
   
@@ -116,7 +116,7 @@
   <meta property="og:site_name" content="Dennis Sobolewski">
   <meta property="og:url" content="/post/exploratory-analysis-of-time-series-data-with-tidyverts/">
   <meta property="og:title" content="Exploratory Analysis of Time Series Data with Tidyverts | Dennis Sobolewski">
-  <meta property="og:description" content="Into to Tidyverts Last month, I attended rstudio::conf 2020 and took Rob J Hyndman’s awesome Tidy Time Series and Forecasting in R workshop. Professor Hyndman highlighted functionality within the Tidyverts packages for exploring and extracting features from time series datasets.Tidyverts is currently comprised of three main packages and works within the Tidyverse framework (i.e. piping and dplyr functions).
+  <meta property="og:description" content="Intro to Tidyverts Last month, I attended rstudio::conf 2020 and took Rob J Hyndman’s awesome Tidy Time Series and Forecasting in R workshop. Professor Hyndman highlighted functionality within the Tidyverts packages for exploring and extracting features from time series datasets.Tidyverts is currently comprised of three main packages and works within the Tidyverse framework (i.e. piping and dplyr functions).
  Tsibble- Makes data wrangling and formatting of time series data easier."><meta property="og:image" content="/img/icon-192.png">
   <meta property="twitter:image" content="/img/icon-192.png"><meta property="og:locale" content="en-us">
   
@@ -169,7 +169,7 @@
       "url": "/img/icon-512.png"
     }
   },
-  "description": "Into to Tidyverts Last month, I attended rstudio::conf 2020 and took Rob J Hyndman’s awesome Tidy Time Series and Forecasting in R workshop. Professor Hyndman highlighted functionality within the Tidyverts packages for exploring and extracting features from time series datasets.Tidyverts is currently comprised of three main packages and works within the Tidyverse framework (i.e. piping and dplyr functions).\n Tsibble- Makes data wrangling and formatting of time series data easier."
+  "description": "Intro to Tidyverts Last month, I attended rstudio::conf 2020 and took Rob J Hyndman’s awesome Tidy Time Series and Forecasting in R workshop. Professor Hyndman highlighted functionality within the Tidyverts packages for exploring and extracting features from time series datasets.Tidyverts is currently comprised of three main packages and works within the Tidyverse framework (i.e. piping and dplyr functions).\n Tsibble- Makes data wrangling and formatting of time series data easier."
 }
 </script>
 
@@ -436,8 +436,8 @@
       
 
 
-<div id="into-to-tidyverts" class="section level2">
-<h2>Into to Tidyverts</h2>
+<div id="intro-to-tidyverts" class="section level2">
+<h2>Intro to Tidyverts</h2>
 <p>Last month, I attended rstudio::conf 2020 and took <a href="https://robjhyndman.com/">Rob J Hyndman’s</a> awesome Tidy Time Series and Forecasting in R workshop. Professor Hyndman highlighted functionality within the <a href="https://tidyverts.org/">Tidyverts</a> packages for exploring and extracting features from time series datasets.Tidyverts is currently comprised of three main packages and works within the Tidyverse framework (i.e. piping and dplyr functions).</p>
 <ul>
 <li><strong>Tsibble-</strong> Makes data wrangling and formatting of time series data easier. Formats time series data into a “tsibble” R object so other packages within Tidyverts know how to handle it.</li>
@@ -591,7 +591,7 @@ sugrrants::prettify(calendar, size = 3, label.padding = unit(0.15, &quot;lines&q
 </div>
 <div id="feature-extraction" class="section level2">
 <h2>Feature Extraction</h2>
-<p>The Tidyverts package includes functions that make it easy to extract many different features from atsibble object. The fabletools::features() function allows you to simply choose the feature, or set of feastures, that you wish to extract. Feasts contains pre-determined sets of features taht can be found with ?fabletools::features_by_pkg(). The below example uses the feasts::feat_stl feature set which results in nine features being extracted that summarise each time series.</p>
+<p>Tidyverts includes functions that make it easy to extract many different features from a tsibble object. The fabletools::features() function allows you to choose the feature, or set of feastures, that you wish to extract. Feasts contains pre-determined sets of features that can be found with ?fabletools::features_by_pkg(). The below example uses the feasts::feat_stl feature set which results in nine features being extracted that summarise each time series.</p>
 <pre class="r"><code>tourism_stl_feats &lt;- tourism_ts %&gt;%
   fabletools::features(Trips, features = feasts::feat_stl) 
 
@@ -671,7 +671,7 @@ head(tourism_features)</code></pre>
 </div>
 <div id="red-cluster" class="section level3">
 <h3>Red Cluster</h3>
-<p>The red cluster only contains 2 time series from our original dataset. This means they were different enough from all other series to necessiate their own cluster. Plotting these reveals they have irregular looking seasonality and a positive trend overall.</p>
+<p>The red cluster only contains 2 time series from our original dataset, meaning they were different enough from all other series to necessiate their own cluster. Plotting these reveals they have irregular looking seasonality and a positive trend overall.</p>
 <p><img src="../../post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/tourism_cluster_3-1.png" width="672" /><img src="../../post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/tourism_cluster_3-2.png" width="672" /><img src="../../post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/tourism_cluster_3-3.png" width="672" /></p>
 </div>
 <div id="red-and-green-clusters" class="section level3">
@@ -684,12 +684,12 @@ head(tourism_features)</code></pre>
 ## 4 shift_level_index 37.95556  49.46875      0.14195205
 ## 5    shift_kl_index 33.64074  38.78125      0.12730849
 ## 6         linearity 27.17881  34.06117      0.09652482</code></pre>
-<p>If we facet by cluster we can plot the individual time series for each cluster. When all series are plotted together it is difficult to distinguish their features but if we look at the average trip totals for each cluster the differences become clearer. The red cluster contains our two outliers that we looked at earler and make up fewer trips on average than the other two clusters. The green cluster contains more seasonal series with greater spikiness and little overall trend change. The final blue cluster has less consistent seasonality but a stronger overall positive trend.</p>
+<p>If we facet by cluster we can plot the individual time series members for each cluster. When all series are plotted together it is difficult to distinguish their features but if we look at the average trip totals for each cluster the differences become clearer. The red cluster contains our two outliers that we looked at earler and make up fewer trips on average than the other two clusters. The green cluster contains more seasonal series with greater spikiness and little overall trend change. The final blue cluster has less consistent seasonality but a stronger overall positive trend.</p>
 <p><img src="../../post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/tourism_cluster_all-1.png" width="672" /><img src="../../post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/tourism_cluster_all-2.png" width="672" /></p>
 </div>
 <div id="pca-analysis" class="section level3">
 <h3>PCA Analysis</h3>
-<p>Principal component analysis on the extracted time series features is another useful method for finding insights. Below is a of all time series with the PC1 and PC2 values on each axis. This allows us to see how different specific series are from each other in principal component space. We can see a clear grouping of green dots at the top of plot representing holiday trips. I increased the size of the three series that seem furthest away from the others.</p>
+<p>Principal component analysis on the extracted time series features is another useful method for finding insights. Below is a plot of all time series with the PC1 and PC2 values on each axis. This allows us to see how different specific series are from each other in principal component space. We can see a clear grouping of green dots at the top of plot representing holiday trips. I increased the size of the three series that seem furthest away from the others.</p>
 <p><img src="../../post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/tourism_features_pca-1.png" width="672" /></p>
 <p>If we isolate these three outliers we can see that two of them were in our red cluster above. The third series represents holidays in Western Australia with high seasonality and a positive trend. These are the three series that are most unique based on the extracted features and PC analysis.</p>
 <p><img src="../../post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/pca_outliers-1.png" width="672" /></p>
@@ -697,7 +697,7 @@ head(tourism_features)</code></pre>
 </div>
 <div id="putting-it-all-together" class="section level2">
 <h2>Putting It All Together</h2>
-<p>We can combine our PCA and cluster analysis we can see all individual cluster members in PC space. This shows a nice picture of how different clusters are represented by the first two prinicpal components and which members lie on the outskirts of a particular cluster. The few green cluster 2 members that lie within the larger red cluster 1 group are prime candidates for further investigation.</p>
+<p>We can combine our PCA and cluster analysis to see all individual cluster members in PC space. This shows a clear picture of how different clusters are represented by the first two prinicpal components and which members lie on the outskirts of a particular cluster. The few green cluster 2 members that lie within the larger red cluster 1 group are prime candidates for further investigation.</p>
 <p><img src="../../post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/tourism_features_pca_clust-1.png" width="672" /></p>
 <p>If we facet our PC plot by cluster we can retain the purpose category as the point color. This shows the first cluster comprised of a mix of all travel purposes, the second cluster made primarily of holiday travel, and the two previously identified outliers in the third cluster. The two business series present in cluster 2 are interesting points that could be further investigated.</p>
 <p><img src="../../post/2020-02-10-exploratory-analysis-of-time-series-data-with-tidyverts_files/figure-html/tourism_features_pca_clust_facet-1.png" width="672" /></p>
