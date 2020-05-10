@@ -174,6 +174,17 @@ ggplot() +
 
 ##Functional Programming version
 
+sf_plot <- function(data, loc) {
+
+data %>%
+  ggplot() +
+  geom_sf(aes(fill = cases_per_cap)) +
+  scale_fill_gradient(low = "#FFF5F0" , high = "#A50F15", name = "Cases Per 1000") +
+  labs(title = paste0(loc," COVID-19 Cases by Zipcode"))  
+
+}
+
+
 global_morans_plot <- function(data, loc){
   
   tibble::enframe(data$res) %>%
@@ -233,19 +244,19 @@ covid_tibble <- tibble(
 morans_results <- covid_tibble %>%
   ##perform global morans I calculation with MC simulations
   mutate(
+    covid_map = map2(covid_sf,location,sf_plot),
     covid_sp = map(covid_sf, ~as(., "Spatial")),    ##create sp object
     global_morans = map(covid_sp, ~ spdep::EBImoran.mc(n = .$cases,
-                                                       x = .$pop,
-                                                       listw = spdep::nb2listw(spdep::poly2nb(.,queen = T, row.names = .$zip)),
-                                                       nsim = 9999)),     ##run global morans I test
+                                                            x = .$pop,
+                                                            listw = spdep::nb2listw(spdep::poly2nb(.,queen = T, row.names = .$zip)),
+                                                            nsim = 9999)),     ##run global morans I test
     global_morans_tidied = map(global_morans, broom::tidy),    ##Create output plots
     global_moran_plots = map2(global_morans,location,global_morans_plot)) %>%   #perform local morans I calculations
  ##Perform local morans I calculations
   mutate(
     local_morans = map(covid_sp, ~ spdep::localmoran(x = .$cases_per_cap,
-                                                     listw = spdep::nb2listw(spdep::poly2nb(.,queen = T, row.names = .$zip)),
-                                                     p.adjust.method = "bonferroni",
-                                                     alternative = "two.sided")),    ##run local morans I 
+                                                          listw = spdep::nb2listw(spdep::poly2nb(.,queen = T, row.names = .$zip)),
+                                                          p.adjust.method = "bonferroni")),    ##run local morans I 
     local_morans_tidied = pmap(list(local_morans, covid_sp, covid_sf), local_morans_tidy),    ##tidy the local morans I output
     local_morans_plots = map2(local_morans_tidied,location,local_morans_plots)    ##Create output plots
          )
@@ -260,7 +271,11 @@ morans_results <- covid_tibble %>%
 
 COVID-19 data analyses are all the rage at the moment, with COVID datasets being made publicly available at the city, state, and national level. It's an awesome example of how open data can lead to a better understanding of the world around us. And, the best part is, much of the actual analyses are free! I decided to take a stab it and contribute to the public COVID discorse with my own analysis below.
 
+## Wrangling Geospatial Data
 
+## Moran's I
+
+## Philadelphia Example 
 
 ```{r phila_geo, include=TRUE, echo = TRUE}
 
@@ -347,6 +362,18 @@ ggplot() +
 
 ```
 
+
+## Functional Programming to Test Many Locations
+
+```{r covid_plot, include=TRUE, echo = FALSE, results='hide'}
+
+morans_results$covid_map
+
+
+```
+
+
+
 ```{r morans_gl, include=TRUE, echo = FALSE, results='hide'}
 
 morans_results$global_moran_plots
@@ -367,6 +394,17 @@ morans_results$local_morans_plots
 ```{r functional, eval=FALSE, echo = TRUE}
 
 ##Functional Programming version
+
+
+sf_plot <- function(data, loc) {
+
+data %>%
+  ggplot() +
+  geom_sf(aes(fill = cases_per_cap)) +
+  scale_fill_gradient(low = "#FFF5F0" , high = "#A50F15", name = "Cases Per 1000") +
+  labs(title = paste0(loc," COVID-19 Cases by Zipcode"))  
+
+}
 
 #function to create global moran density plots
 global_morans_plot <- function(data, loc){
@@ -424,26 +462,25 @@ covid_tibble <- tibble(
 )
 
 
-## Create a tibble holding results and plots for all tests
 morans_results <- covid_tibble %>%
   ##perform global morans I calculation with MC simulations
   mutate(
+    covid_map = map2(covid_sf,location,sf_plot),
     covid_sp = map(covid_sf, ~as(., "Spatial")),    ##create sp object
     global_morans = map(covid_sp, ~ spdep::EBImoran.mc(n = .$cases,
-                                                       x = .$pop,
-                                                       listw = spdep::nb2listw(spdep::poly2nb(.,queen = T, row.names = $zip)),
-                                                       nsim = 9999,
-                                                       alternative = "two.sided")),     ##run global morans I test
+                                                            x = .$pop,
+                                                            listw = spdep::nb2listw(spdep::poly2nb(.,queen = T, row.names = .$zip)),
+                                                            nsim = 9999)),     ##run global morans I test
     global_morans_tidied = map(global_morans, broom::tidy),    ##Create output plots
     global_moran_plots = map2(global_morans,location,global_morans_plot)) %>%   #perform local morans I calculations
  ##Perform local morans I calculations
   mutate(
     local_morans = map(covid_sp, ~ spdep::localmoran(x = .$cases_per_cap,
-                                                     listw = spdep::nb2listw(spdep::poly2nb(.,queen = T, row.names = .$zip)),
-                                                     p.adjust.method = "bonferroni",
-                                                     alternative = "two.sided")),    ##run local morans I 
+                                                          listw = spdep::nb2listw(spdep::poly2nb(.,queen = T, row.names = .$zip)),
+                                                          p.adjust.method = "bonferroni")),    ##run local morans I 
     local_morans_tidied = pmap(list(local_morans, covid_sp, covid_sf), local_morans_tidy),    ##tidy the local morans I output
     local_morans_plots = map2(local_morans_tidied,location,local_morans_plots)    ##Create output plots
          )
+
 ```
 

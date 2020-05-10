@@ -21,6 +21,14 @@
 
 
 &lt;p&gt;COVID-19 data analyses are all the rage at the moment, with COVID datasets being made publicly available at the city, state, and national level. It’s an awesome example of how open data can lead to a better understanding of the world around us. And, the best part is, much of the actual analyses are free! I decided to take a stab it and contribute to the public COVID discorse with my own analysis below.&lt;/p&gt;
+&lt;div id=&#34;wrangling-geospatial-data&#34; class=&#34;section level2&#34;&gt;
+&lt;h2&gt;Wrangling Geospatial Data&lt;/h2&gt;
+&lt;/div&gt;
+&lt;div id=&#34;morans-i&#34; class=&#34;section level2&#34;&gt;
+&lt;h2&gt;Moran’s I&lt;/h2&gt;
+&lt;/div&gt;
+&lt;div id=&#34;philadelphia-example&#34; class=&#34;section level2&#34;&gt;
+&lt;h2&gt;Philadelphia Example&lt;/h2&gt;
 &lt;pre class=&#34;r&#34;&gt;&lt;code&gt;phila_covid_sf %&amp;gt;%
 ggplot() +
 geom_sf(aes(fill = cases_per_cap)) +
@@ -82,9 +90,24 @@ phila_lc_moran_tidy &amp;lt;- broom::tidy(phila_lc_moran) %&amp;gt;%
 ## 6 19154   -0.656   -1.18   0.944             14.4      11.2&lt;/code&gt;&lt;/pre&gt;
 &lt;p&gt;&lt;img src=&#34;../post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/phila_mlc_plot-1.png&#34; width=&#34;672&#34; style=&#34;display: block; margin: auto;&#34; /&gt;&lt;/p&gt;
 &lt;p&gt;&lt;img src=&#34;../post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/phila_mlc_plot_sf-1.png&#34; width=&#34;672&#34; style=&#34;display: block; margin: auto;&#34; /&gt;&lt;/p&gt;
+&lt;/div&gt;
+&lt;div id=&#34;functional-programming-to-test-many-locations&#34; class=&#34;section level2&#34;&gt;
+&lt;h2&gt;Functional Programming to Test Many Locations&lt;/h2&gt;
+&lt;p&gt;&lt;img src=&#34;../post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/covid_plot-1.png&#34; width=&#34;672&#34; style=&#34;display: block; margin: auto;&#34; /&gt;&lt;img src=&#34;../post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/covid_plot-2.png&#34; width=&#34;672&#34; style=&#34;display: block; margin: auto;&#34; /&gt;&lt;img src=&#34;../post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/covid_plot-3.png&#34; width=&#34;672&#34; style=&#34;display: block; margin: auto;&#34; /&gt;&lt;/p&gt;
 &lt;p&gt;&lt;img src=&#34;../post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/morans_gl-1.png&#34; width=&#34;672&#34; style=&#34;display: block; margin: auto;&#34; /&gt;&lt;img src=&#34;../post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/morans_gl-2.png&#34; width=&#34;672&#34; style=&#34;display: block; margin: auto;&#34; /&gt;&lt;img src=&#34;../post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/morans_gl-3.png&#34; width=&#34;672&#34; style=&#34;display: block; margin: auto;&#34; /&gt;&lt;/p&gt;
 &lt;p&gt;&lt;img src=&#34;../post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/morans_local-1.png&#34; width=&#34;672&#34; style=&#34;display: block; margin: auto;&#34; /&gt;&lt;img src=&#34;../post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/morans_local-2.png&#34; width=&#34;672&#34; style=&#34;display: block; margin: auto;&#34; /&gt;&lt;img src=&#34;../post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/morans_local-3.png&#34; width=&#34;672&#34; style=&#34;display: block; margin: auto;&#34; /&gt;&lt;/p&gt;
 &lt;pre class=&#34;r&#34;&gt;&lt;code&gt;##Functional Programming version
+
+
+sf_plot &amp;lt;- function(data, loc) {
+
+data %&amp;gt;%
+  ggplot() +
+  geom_sf(aes(fill = cases_per_cap)) +
+  scale_fill_gradient(low = &amp;quot;#FFF5F0&amp;quot; , high = &amp;quot;#A50F15&amp;quot;, name = &amp;quot;Cases Per 1000&amp;quot;) +
+  labs(title = paste0(loc,&amp;quot; COVID-19 Cases by Zipcode&amp;quot;))  
+
+}
 
 #function to create global moran density plots
 global_morans_plot &amp;lt;- function(data, loc){
@@ -142,27 +165,26 @@ covid_tibble &amp;lt;- tibble(
 )
 
 
-## Create a tibble holding results and plots for all tests
 morans_results &amp;lt;- covid_tibble %&amp;gt;%
   ##perform global morans I calculation with MC simulations
   mutate(
+    covid_map = map2(covid_sf,location,sf_plot),
     covid_sp = map(covid_sf, ~as(., &amp;quot;Spatial&amp;quot;)),    ##create sp object
     global_morans = map(covid_sp, ~ spdep::EBImoran.mc(n = .$cases,
-                                                       x = .$pop,
-                                                       listw = spdep::nb2listw(spdep::poly2nb(.,queen = T, row.names = $zip)),
-                                                       nsim = 9999,
-                                                       alternative = &amp;quot;two.sided&amp;quot;)),     ##run global morans I test
+                                                            x = .$pop,
+                                                            listw = spdep::nb2listw(spdep::poly2nb(.,queen = T, row.names = .$zip)),
+                                                            nsim = 9999)),     ##run global morans I test
     global_morans_tidied = map(global_morans, broom::tidy),    ##Create output plots
     global_moran_plots = map2(global_morans,location,global_morans_plot)) %&amp;gt;%   #perform local morans I calculations
  ##Perform local morans I calculations
   mutate(
     local_morans = map(covid_sp, ~ spdep::localmoran(x = .$cases_per_cap,
-                                                     listw = spdep::nb2listw(spdep::poly2nb(.,queen = T, row.names = .$zip)),
-                                                     p.adjust.method = &amp;quot;bonferroni&amp;quot;,
-                                                     alternative = &amp;quot;two.sided&amp;quot;)),    ##run local morans I 
+                                                          listw = spdep::nb2listw(spdep::poly2nb(.,queen = T, row.names = .$zip)),
+                                                          p.adjust.method = &amp;quot;bonferroni&amp;quot;)),    ##run local morans I 
     local_morans_tidied = pmap(list(local_morans, covid_sp, covid_sf), local_morans_tidy),    ##tidy the local morans I output
     local_morans_plots = map2(local_morans_tidied,location,local_morans_plots)    ##Create output plots
          )&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
 </description>
     </item>
     
