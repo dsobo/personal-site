@@ -262,18 +262,28 @@ morans_results <- covid_tibble %>%
          )
 
 
-  
-
-
-
-
 ```
 
 COVID-19 data analyses are all the rage at the moment, with COVID datasets being made publicly available at the city, state, and national level. It's an awesome example of how open data can lead to a better understanding of the world around us. And, the best part is, much of the actual analyses are free! I decided to take a stab it and contribute to the public COVID discorse with my own analysis below.
 
 ## Wrangling Geospatial Data
 
+```{r utm_pic, echo = FALSE, out.width = "800px"}
+
+knitr::include_graphics(here::here("static","data","COVID_spatial","UTM.PNG"))
+
+```
+
 ## Moran's I
+
+
+```{r morans_table, echo = FALSE}
+
+knitr::include_graphics(here::here("static","data","COVID_spatial","moran_I.PNG"))
+
+```
+
+
 
 ## Philadelphia Example 
 

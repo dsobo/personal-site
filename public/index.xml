@@ -81,9 +81,11 @@
 &lt;p&gt;COVID-19 data analyses are all the rage at the moment, with COVID datasets being made publicly available at the city, state, and national level. It’s an awesome example of how open data can lead to a better understanding of the world around us. And, the best part is, much of the actual analyses are free! I decided to take a stab it and contribute to the public COVID discorse with my own analysis below.&lt;/p&gt;
 &lt;div id=&#34;wrangling-geospatial-data&#34; class=&#34;section level2&#34;&gt;
 &lt;h2&gt;Wrangling Geospatial Data&lt;/h2&gt;
+&lt;p&gt;&lt;img src=&#34;./home/dsobolew/Documents/personal-site/static/data/COVID_spatial/UTM.PNG&#34; width=&#34;800px&#34; style=&#34;display: block; margin: auto;&#34; /&gt;&lt;/p&gt;
 &lt;/div&gt;
 &lt;div id=&#34;morans-i&#34; class=&#34;section level2&#34;&gt;
 &lt;h2&gt;Moran’s I&lt;/h2&gt;
+&lt;p&gt;&lt;img src=&#34;./home/dsobolew/Documents/personal-site/static/data/COVID_spatial/moran_I.PNG&#34; style=&#34;display: block; margin: auto;&#34; /&gt;&lt;/p&gt;
 &lt;/div&gt;
 &lt;div id=&#34;philadelphia-example&#34; class=&#34;section level2&#34;&gt;
 &lt;h2&gt;Philadelphia Example&lt;/h2&gt;
