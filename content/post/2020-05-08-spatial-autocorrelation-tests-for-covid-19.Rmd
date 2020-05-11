@@ -247,16 +247,17 @@ morans_results <- covid_tibble %>%
     covid_map = map2(covid_sf,location,sf_plot),
     covid_sp = map(covid_sf, ~as(., "Spatial")),    ##create sp object
     global_morans = map(covid_sp, ~ spdep::EBImoran.mc(n = .$cases,
-                                                            x = .$pop,
-                                                            listw = spdep::nb2listw(spdep::poly2nb(.,queen = T, row.names = .$zip)),
-                                                            nsim = 9999)),     ##run global morans I test
+                                                       x = .$pop,
+                                                       listw = spdep::nb2listw(spdep::poly2nb(.,queen = T, row.names = .$zip)),
+                                                       nsim = 9999)),     ##run global morans I test
     global_morans_tidied = map(global_morans, broom::tidy),    ##Create output plots
     global_moran_plots = map2(global_morans,location,global_morans_plot)) %>%   #perform local morans I calculations
  ##Perform local morans I calculations
   mutate(
     local_morans = map(covid_sp, ~ spdep::localmoran(x = .$cases_per_cap,
-                                                          listw = spdep::nb2listw(spdep::poly2nb(.,queen = T, row.names = .$zip)),
-                                                          p.adjust.method = "bonferroni")),    ##run local morans I 
+                                                     listw = spdep::nb2listw(spdep::poly2nb(.,queen = T, row.names = .$zip)),
+                                                     p.adjust.method = "bonferroni",
+                                                     alternative = "two.sided")),    ##run local morans I 
     local_morans_tidied = pmap(list(local_morans, covid_sp, covid_sf), local_morans_tidy),    ##tidy the local morans I output
     local_morans_plots = map2(local_morans_tidied,location,local_morans_plots)    ##Create output plots
          )
