@@ -78,22 +78,64 @@
       <description>
 
 
-&lt;p&gt;COVID-19 data analyses are all the rage at the moment, with COVID datasets being made publicly available at the city, state, and national level. It’s an awesome example of how open data can lead to a better understanding of the world around us. And, the best part is, much of the actual analyses are free! I decided to take a stab it and contribute to the public COVID discorse with my own analysis below.&lt;/p&gt;
-&lt;div id=&#34;wrangling-geospatial-data&#34; class=&#34;section level2&#34;&gt;
-&lt;h2&gt;Wrangling Geospatial Data&lt;/h2&gt;
-&lt;p&gt;&lt;img src=&#34;./home/dsobolew/Documents/personal-site/static/data/COVID_spatial/UTM.PNG&#34; width=&#34;800px&#34; style=&#34;display: block; margin: auto;&#34; /&gt;&lt;/p&gt;
+&lt;p&gt;COVID-19 data analyses are all the rage at the moment, with COVID datasets being made publicly available at the city, state, and national level. It’s an awesome example of how open data can lead to a better understanding of the world around us. And, the best part is, much of the actual analysis is being done for free! I decided to take a stab it and contribute to the public COVID discorse with my own analysis below.&lt;/p&gt;
+&lt;p&gt;Talk about COVID-19 “hot spots” is frequent in the news, often referring to NYC since it has the most COVID-19 cases of any city in the US. Beyond looking at simple COVID case tallies, it is not clear how these hot spots are being determined. How do they determine that one area has a statistically significant higher number of cases than another? Factors such as population and the COVID rates of locations directly next to an area all affect how significance is determined within COVID case data. Enter Moran’s I, a measure of spatial autocorrelation that can be used to test for clustering, or dispersion, of an outcome on a map. I will show you how to perform and interpret a Moran’s I test by applying it to real COVID data for a selection of US cities.&lt;/p&gt;
+&lt;div id=&#34;data-sources&#34; class=&#34;section level2&#34;&gt;
+&lt;h2&gt;Data Sources&lt;/h2&gt;
+&lt;p&gt;For each area you want to test for spatial autocorrelation you will need three main pieces of information.&lt;/p&gt;
+&lt;ol style=&#34;list-style-type: decimal&#34;&gt;
+&lt;li&gt;Total COVID cases&lt;/li&gt;
+&lt;li&gt;Estimated population&lt;/li&gt;
+&lt;li&gt;Geometry of the area&lt;/li&gt;
+&lt;/ol&gt;
+&lt;div id=&#34;covid-cases&#34; class=&#34;section level3&#34;&gt;
+&lt;h3&gt;COVID Cases&lt;/h3&gt;
+&lt;p&gt;The most granular datasets I could find for COVID data has cases tallied at the zipcode level for certain cities and states. &lt;a href=&#34;https://dph.illinois.gov/covid19/covid19-statistics&#34;&gt;Here&lt;/a&gt; is an example for the state of Illinois. Unfortunately I did not find a central repository or API that allows you to easily retrieve this data for multiple areas. Instead it appears a city or state will release the data on only their own site, meaning I will need to aggregate the data from multiple sources. For this blog I manually downloaded COVID case data by zipcode for Philadelphia, Chicago, and San Francisco&lt;/p&gt;
+&lt;/div&gt;
+&lt;div id=&#34;population-and-geometry&#34; class=&#34;section level3&#34;&gt;
+&lt;h3&gt;Population and Geometry&lt;/h3&gt;
+&lt;p&gt;Finding population and case data was easy thanks to the publicly available Census API and the tidycensus R package. The &lt;a href=&#34;https://www.census.gov/data/developers/guidance/api-user-guide.html&#34;&gt;Census API&lt;/a&gt; is pretty amazing, with thousands of different statistics available at multiple geographic levels. To make things easier, the &lt;a href=&#34;https://github.com/walkerke/tidycensus&#34;&gt;tidycensus&lt;/a&gt; package is a convenient wrapper for this API that makes pulling data a breeze. Tidycensus can automatically pull the geometry of the area boundaries your statistics represent for easy plotting and analysis. Adding the geometry to the returned data converts it to an sf object that can be easily visualized using ggplot2. Here is all the code you need to create a heatmap of household income in the US by county.&lt;/p&gt;
+&lt;pre class=&#34;r&#34;&gt;&lt;code&gt;us_county_income &amp;lt;- get_acs(geography = &amp;quot;county&amp;quot;, variables = &amp;quot;B19013_001&amp;quot;, 
+                            shift_geo = TRUE, geometry = TRUE)
+
+ggplot(us_county_income) + 
+  geom_sf(aes(fill = estimate), color = NA) + 
+  coord_sf(datum = NA) + 
+  theme_minimal() + 
+  scale_fill_viridis_c()&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;&lt;img src=&#34;./post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/income-1.png&#34; width=&#34;672&#34; style=&#34;display: block; margin: auto;&#34; /&gt;&lt;/p&gt;
+&lt;p&gt;For our anaylsis I pulled the total population of each zipcode in the US, with its geometry, and did an inner join with my COVID datasets. I end up with a seperate sf object for Philadelpia, San Francisco, and Chicago.&lt;/p&gt;
+&lt;pre class=&#34;r&#34;&gt;&lt;code&gt;head(phila_covid_sf)&lt;/code&gt;&lt;/pre&gt;
+&lt;pre&gt;&lt;code&gt;## Simple feature collection with 6 features and 4 fields
+## geometry type:  MULTIPOLYGON
+## dimension:      XY
+## bbox:           xmin: 478510.5 ymin: 4419279 xmax: 496536.8 ymax: 4435730
+## epsg (SRID):    26918
+## proj4string:    +proj=utm +zone=18 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs
+## # A tibble: 6 x 5
+##   cases zip     pop                                  geometry cases_per_cap
+##   &amp;lt;dbl&amp;gt; &amp;lt;fct&amp;gt; &amp;lt;dbl&amp;gt;                        &amp;lt;MULTIPOLYGON [m]&amp;gt;         &amp;lt;dbl&amp;gt;
+## 1   403 19138 34614 (((485004.9 4433570, 485294.2 4433486, 4…         11.6 
+## 2   171 19122 22690 (((486657.7 4426246, 486771.9 4426228, 4…          7.54
+## 3   509 19149 59853 (((492066.7 4431838, 492275.7 4432106, 4…          8.50
+## 4   627 19124 68905 (((489247.9 4429303, 489557.3 4429251, 4…          9.10
+## 5   739 19143 65812 (((478510.5 4422474, 478711.6 4422840, 4…         11.2 
+## 6   235 19130 26100 (((483562.3 4425076, 483487.3 4425183, 4…          9.00&lt;/code&gt;&lt;/pre&gt;
+&lt;/div&gt;
 &lt;/div&gt;
 &lt;div id=&#34;morans-i&#34; class=&#34;section level2&#34;&gt;
 &lt;h2&gt;Moran’s I&lt;/h2&gt;
-&lt;p&gt;&lt;img src=&#34;./home/dsobolew/Documents/personal-site/static/data/COVID_spatial/moran_I.PNG&#34; style=&#34;display: block; margin: auto;&#34; /&gt;&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;./home/dsobolew/Documents/personal-site/static/data/COVID_spatial/moran_I.png&#34; style=&#34;display: block; margin: auto;&#34; /&gt;&lt;/p&gt;
 &lt;/div&gt;
 &lt;div id=&#34;philadelphia-example&#34; class=&#34;section level2&#34;&gt;
 &lt;h2&gt;Philadelphia Example&lt;/h2&gt;
 &lt;pre class=&#34;r&#34;&gt;&lt;code&gt;phila_covid_sf %&amp;gt;%
-ggplot() +
-geom_sf(aes(fill = cases_per_cap)) +
-scale_fill_gradient(low = &amp;quot;#FFF5F0&amp;quot; , high = &amp;quot;#A50F15&amp;quot;, name = &amp;quot;Cases Per 1000&amp;quot;) +
-labs(title = &amp;quot;Philadelphia COVID-19 Cases Per Capita&amp;quot;)&lt;/code&gt;&lt;/pre&gt;
+  ggplot() +
+  geom_sf(aes(fill = cases_per_cap), color = NA) +
+  coord_sf(datum = NA) +
+  theme_minimal() +
+  scale_fill_viridis_c(name = &amp;quot;Cases Per 1000&amp;quot;) +
+  labs(title = &amp;quot;Philadelphia COVID-19 Cases Per Capita&amp;quot;)&lt;/code&gt;&lt;/pre&gt;
 &lt;p&gt;&lt;img src=&#34;./post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/phila_geo-1.png&#34; width=&#34;672&#34; style=&#34;display: block; margin: auto;&#34; /&gt;&lt;/p&gt;
 &lt;pre class=&#34;r&#34;&gt;&lt;code&gt;library(spdep)
 
@@ -120,7 +162,7 @@ phila_moran_mc&lt;/code&gt;&lt;/pre&gt;
 ## weights: nb2listw(phila_nb, style = &amp;quot;W&amp;quot;)
 ## number of simulations + 1: 10000
 ## 
-## statistic = 0.07143, observed rank = 8479, p-value = 0.1521
+## statistic = 0.16173, observed rank = 9711, p-value = 0.0289
 ## alternative hypothesis: greater&lt;/code&gt;&lt;/pre&gt;
 &lt;pre class=&#34;r&#34;&gt;&lt;code&gt;plot(phila_moran_mc)&lt;/code&gt;&lt;/pre&gt;
 &lt;p&gt;&lt;img src=&#34;./post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/phila_mgl-1.png&#34; width=&#34;672&#34; style=&#34;display: block; margin: auto;&#34; /&gt;&lt;/p&gt;
@@ -142,12 +184,12 @@ phila_lc_moran_tidy &amp;lt;- broom::tidy(phila_lc_moran) %&amp;gt;%
 &lt;pre&gt;&lt;code&gt;## # A tibble: 6 x 6
 ##   zip   morans_i z_score p_value lag_cases_per_cap lag_mean
 ##   &amp;lt;chr&amp;gt;    &amp;lt;dbl&amp;gt;   &amp;lt;dbl&amp;gt;   &amp;lt;dbl&amp;gt;             &amp;lt;dbl&amp;gt;    &amp;lt;dbl&amp;gt;
-## 1 19123   -1.78    -5.24   0                  8.71     11.2
-## 2 19127    1.92     2.05   0.081              6.89     11.2
-## 3 19137    0.891    1.70   0.352              9.25     11.2
-## 4 19106   -0.84    -1.53   0.506             13.6      11.2
-## 5 19134    0.570    1.46   0.866              8.24     11.2
-## 6 19154   -0.656   -1.18   0.944             14.4      11.2&lt;/code&gt;&lt;/pre&gt;
+## 1 19127    1.63    2.51    0.037              7.10     10.7
+## 2 19137    0.969   1.86    0.254              8.50     10.7
+## 3 19147    0.72    2.03    0.296              8.36     10.7
+## 4 19123   -0.717  -2.08    0.303              7.88     10.7
+## 5 19126    0.838   1.61    0.429             11.6      10.7
+## 6 19138    0.282   0.752   1                 15.7      10.7&lt;/code&gt;&lt;/pre&gt;
 &lt;p&gt;&lt;img src=&#34;./post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/phila_mlc_plot-1.png&#34; width=&#34;672&#34; style=&#34;display: block; margin: auto;&#34; /&gt;&lt;/p&gt;
 &lt;p&gt;&lt;img src=&#34;./post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/phila_mlc_plot_sf-1.png&#34; width=&#34;672&#34; style=&#34;display: block; margin: auto;&#34; /&gt;&lt;/p&gt;
 &lt;/div&gt;

@@ -22,63 +22,66 @@ projects: []
 ---
 
 ```{r setup, include=FALSE}
-library(tidyverse)
-library(fpp3)
-
 
 knitr::opts_chunk$set(fig.retina = 3, warning = FALSE, message = FALSE, echo = FALSE, fig.align = "center")
 
 
 library(tidyverse)
 library(sf)
+library(tidycensus)
+library(viridis)
+
+census_api_key("ea68882061725e028d0ce5eb114fd34509f0c772")
+
+zip_pop <- get_acs(geography = "zcta",
+                   variables = "B01003_001",
+                   year =  2017,
+                   geometry = T)
+
 
 
 ##Philadelphia COVID
 covid_raw <- read_csv(here::here("static","data","COVID_spatial","covid_cases_by_zip.csv"))
-pop <- read_csv(here::here("static","data","COVID_spatial","phila_pop.csv"))
+
+
 
 phila_covid <- covid_raw %>%
-  inner_join(pop, by = c("zip_code"="Zip")) %>%
-  select(covid_status,count,zip_code,Population) %>%
+  mutate(zip_code = as.character(zip_code)) %>%
+  inner_join(zip_pop, by = c("zip_code"="GEOID")) %>%
+  select(covid_status,count,zip_code,estimate,geometry) %>%
   mutate(zip_code = factor(zip_code)) %>%
   filter(covid_status == "POS") %>%
-  rename(zip = zip_code,pop = Population) %>%
+  rename(zip = zip_code,pop = estimate) %>%
   mutate(cases_per_cap = (count/pop) * 1000) %>%
   select(-covid_status) %>%
   rename(cases = count)
   
-ph_zips <- st_read("http://data.phl.opendata.arcgis.com/datasets/b54ec5210cee41c3a884c9086f7af1be_0.geojson") %>%
-  st_transform(26918)
 
 
 phila_covid_sf <- phila_covid %>%
-  inner_join(ph_zips, by = c("zip"="CODE")) %>%
-  select(-OBJECTID,-COD,-Shape__Area,-Shape__Length) %>%
-  st_sf()
+  st_sf() %>%
+  st_transform(26918)
 
 
 phila_covid_sf %>%
-ggplot() +
-geom_sf(aes(fill = cases_per_cap)) +
-scale_fill_gradient(low = "#FFF5F0" , high = "#A50F15", name = "Cases Per 1000") +
-labs(title = "Philadelphia COVID-19 Cases Per Capita")
-
+  ggplot() +
+  geom_sf(aes(fill = cases_per_cap)) +
+  scale_fill_gradient(low = "#FFF5F0" , high = "#A50F15", name = "Cases Per 1000")
 
 ##Chicago COVID
 
 chi_covid <- read_csv(here::here("static","data","COVID_spatial","chi_covid.csv")) %>%
   mutate(zip = factor(Zip)) %>%
   rename(cases = Cases, pop = Pop) %>%
-  select(-Zip,-Tested) %>%
-  mutate(cases_per_cap = (cases/pop) * 1000)
+  select(-Zip,-Tested, -pop)
 
-chi_zip <- st_read(here::here("static","data","COVID_spatial","chi.geojson")) %>%
-  st_transform(32616) %>%
-  filter(!objectid %in% c(51,15))
 
 chi_covid_sf <- chi_covid %>%
-  inner_join(chi_zip, by = c("zip"="zip")) %>%
-  select(-objectid,-shape_area,-shape_len) %>%
+  mutate(zip = as.character(zip)) %>%
+  inner_join(zip_pop, by = c("zip"="GEOID")) %>%
+  select(-NAME,-variable,-moe,) %>%
+  rename(pop = estimate) %>%
+  mutate(cases_per_cap = (cases/pop) * 1000) %>%
   st_sf()
 
 
@@ -90,17 +93,16 @@ chi_covid_sf %>%
 ## SF COVID
 
 sf_covid <- read_csv(here::here("static","data","COVID_spatial","sf_covid.csv")) %>%
-  mutate(cases_per_cap = (cases/pop) * 1000,
-         zip = as.character(zip)) %>%
-  filter(cases > 0)
-
-sf_zips <- st_read(here::here("static","data","COVID_spatial","sf.geojson")) %>%
-  st_transform(26710) 
+  mutate(zip = as.character(zip)) %>%
+  filter(cases > 0) %>%
+  select(-pop)
 
 
 sf_covid_sf <- sf_covid %>%
-  inner_join(sf_zips, by = c("zip"="zip")) %>%
-  select(-area,-state,-po_name,-length) %>%
+  inner_join(zip_pop, by = c("zip"="GEOID")) %>%
+  select(-NAME,-variable,-moe) %>%
+  rename(pop = estimate) %>%
+  mutate(cases_per_cap = (cases/pop) * 1000) %>%
   st_sf()
 
 
@@ -108,6 +110,7 @@ sf_covid_sf %>%
   ggplot() +
   geom_sf(aes(fill = cases_per_cap)) +
   scale_fill_gradient(low = "#FFF5F0" , high = "#A50F15", name = "Cases Per 1000")
+
 
 
 
@@ -178,11 +181,14 @@ sf_plot <- function(data, loc) {
 
 data %>%
   ggplot() +
-  geom_sf(aes(fill = cases_per_cap)) +
-  scale_fill_gradient(low = "#FFF5F0" , high = "#A50F15", name = "Cases Per 1000") +
+  geom_sf(aes(fill = cases_per_cap), color = NA) +
+  coord_sf(datum = NA) +
+  theme_minimal() +
+  scale_fill_viridis_c(name = "Cases Per 1000") +
   labs(title = paste0(loc," COVID-19 Cases by Zipcode"))  
 
 }
+
 
 
 global_morans_plot <- function(data, loc){
@@ -227,6 +233,7 @@ local_morans_plots <- function(lm_tidied, loc){
   ggplot() +
     geom_sf(data = sf::st_as_sf(lm_tidied)) +
     geom_sf(data = sf::st_as_sf(lm_tidied) %>% filter(p_value <= .1), aes(fill = quad)) +
+    theme_minimal() +
     scale_fill_manual(values = c("Low-Low"="#4DAF4A" ,"Low-High"="#377EB8","High-Low"="#FF7F00","High-High"="#E41A1C")) +
     labs(title = paste0(loc," Significant COVID-19 Clustering"), x = "", y = "", fill = "")
   
@@ -265,13 +272,42 @@ morans_results <- covid_tibble %>%
 
 ```
 
-COVID-19 data analyses are all the rage at the moment, with COVID datasets being made publicly available at the city, state, and national level. It's an awesome example of how open data can lead to a better understanding of the world around us. And, the best part is, much of the actual analyses are free! I decided to take a stab it and contribute to the public COVID discorse with my own analysis below.
+COVID-19 data analyses are all the rage at the moment, with COVID datasets being made publicly available at the city, state, and national level. It's an awesome example of how open data can lead to a better understanding of the world around us. And, the best part is, much of the actual analysis is being done for free! I decided to take a stab it and contribute to the public COVID discorse with my own analysis below.
 
-## Wrangling Geospatial Data
+Talk about COVID-19 "hot spots" is frequent in the news, often referring to NYC since it has the most COVID-19 cases of any city in the US. Beyond looking at simple COVID case tallies, it is not clear how these hot spots are being determined. How do they determine that one area has a statistically significant higher number of cases than another? Factors such as population and the COVID rates of locations directly next to an area all affect how significance is determined within COVID case data. Enter Moran's I, a measure of spatial autocorrelation that can be used to test for clustering, or dispersion, of an outcome on a map. I will show you how to perform and interpret a Moran's I test by applying it to real COVID data for a selection of US cities.
 
-```{r utm_pic, echo = FALSE, out.width = "800px"}
+## Data Sources
 
-knitr::include_graphics(here::here("static","data","COVID_spatial","UTM.PNG"))
+For each area you want to test for spatial autocorrelation you will need three main pieces of information.
+
+1. Total COVID cases
+2. Estimated population
+3. Geometry of the area
+
+### COVID Cases
+
+The most granular datasets I could find for COVID data has cases tallied at the zipcode level for certain cities and states. [Here](https://dph.illinois.gov/covid19/covid19-statistics) is an example for the state of Illinois. Unfortunately I did not find a central repository or API that allows you to easily retrieve this data for multiple areas. Instead it appears a city or state will release the data on only their own site, meaning I will need to aggregate the data from multiple sources. For this blog I manually downloaded COVID case data by zipcode for Philadelphia, Chicago, and San Francisco
+
+### Population and Geometry
+
+Finding population and case data was easy thanks to the publicly available Census API and the tidycensus R package. The [Census API](https://www.census.gov/data/developers/guidance/api-user-guide.html) is pretty amazing, with thousands of different statistics available at multiple geographic levels. To make things easier, the [tidycensus](https://github.com/walkerke/tidycensus) package is a convenient wrapper for this API that makes pulling data a breeze. Tidycensus can automatically pull the geometry of the area boundaries your statistics represent for easy plotting and analysis. Adding the geometry to the returned data converts it to an sf object that can be easily visualized using ggplot2. Here is all the code you need to create a heatmap of household income in the US by county.
+
+```{r income, include=TRUE, echo = TRUE}
+us_county_income <- get_acs(geography = "county", variables = "B19013_001", 
+                            shift_geo = TRUE, geometry = TRUE)
+
+ggplot(us_county_income) + 
+  geom_sf(aes(fill = estimate), color = NA) + 
+  coord_sf(datum = NA) + 
+  theme_minimal() + 
+  scale_fill_viridis_c()
+```
+
+For our anaylsis I pulled the total population of each zipcode in the US, with its geometry, and did an inner join with my COVID datasets. I end up with a seperate sf object for Philadelpia, San Francisco, and Chicago.
+
+```{r sf_obj, include=TRUE, echo = TRUE}
+
+head(phila_covid_sf)
 
 ```
 
@@ -280,7 +316,7 @@ knitr::include_graphics(here::here("static","data","COVID_spatial","UTM.PNG"))
 
 ```{r morans_table, echo = FALSE}
 
-knitr::include_graphics(here::here("static","data","COVID_spatial","moran_I.PNG"))
+knitr::include_graphics(here::here("static","data","COVID_spatial","moran_I.png"))
 
 ```
 
@@ -291,10 +327,12 @@ knitr::include_graphics(here::here("static","data","COVID_spatial","moran_I.PNG"
 ```{r phila_geo, include=TRUE, echo = TRUE}
 
 phila_covid_sf %>%
-ggplot() +
-geom_sf(aes(fill = cases_per_cap)) +
-scale_fill_gradient(low = "#FFF5F0" , high = "#A50F15", name = "Cases Per 1000") +
-labs(title = "Philadelphia COVID-19 Cases Per Capita")
+  ggplot() +
+  geom_sf(aes(fill = cases_per_cap), color = NA) +
+  coord_sf(datum = NA) +
+  theme_minimal() +
+  scale_fill_viridis_c(name = "Cases Per 1000") +
+  labs(title = "Philadelphia COVID-19 Cases Per Capita")
 
 
 ```
