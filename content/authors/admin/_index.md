@@ -28,7 +28,7 @@ social:
   link: '#contact'
 - icon: twitter
   icon_pack: fab
-  link: https://twitter.com/GeorgeCushen
+  link: https://twitter.com/djsobolew
 - icon: github
   icon_pack: fab
   link: https://github.com/dsobo
@@ -38,5 +38,5 @@ user_groups:
 - Visitors
 ---
 
-I am a Data Scientist and consultant at [Bluetree Network](https://www.bluetreenetwork.com/), where I work to help healthcare organizations find insight in their hard-earned data.
+I am a Data Scientist and consultant at [Bluetree Network](https://www.bluetreenetwork.com/), where I help healthcare organizations find insights from their hard-earned data. 
 
