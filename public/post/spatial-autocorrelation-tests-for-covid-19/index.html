@@ -391,7 +391,7 @@
   
   <span class="middot-divider"></span>
   <span class="article-reading-time">
-    7 min read
+    13 min read
   </span>
   
 
@@ -435,7 +435,7 @@
 
 
 <p>COVID-19 data analyses are all the rage at the moment, with COVID datasets being made publicly available at the city, state, and national level. It’s an awesome example of how open data can lead to a better understanding of the world around us. And, the best part is, much of the actual analysis is being done for free! I decided to take a stab it and contribute to the public COVID discorse with my own analysis below.</p>
-<p>Talk about COVID-19 “hot spots” is frequent in the news, often referring to NYC since it has the most COVID-19 cases of any city in the US. Beyond looking at simple COVID case tallies, it is not clear how these hot spots are being determined. How do they determine that one area has a statistically significant higher number of cases than another? Factors such as population and the COVID rates of locations directly next to an area all affect how significance is determined within COVID case data. Enter Moran’s I, a measure of spatial autocorrelation that can be used to test for clustering, or dispersion, of an outcome on a map. I will show you how to perform and interpret a Moran’s I test by applying it to real COVID data for a selection of US cities.</p>
+<p>Talk about COVID-19 “hot spots” is frequent in the news, often referring to NYC since it has the most COVID-19 cases of any city in the US. Beyond looking at simple COVID case tallies, it is not clear how these hot spots are being determined. How do they determine that one area has a statistically significant higher number of cases compared to another? Factors such as population and the COVID rates of locations directly next to an area all affect how significance is determined within COVID case data. Enter Moran’s I, a measure of spatial autocorrelation that can be used to test for clustering, or dispersion, of an outcome on a map. I will show you how to perform and interpret a Moran’s I test by applying it to real COVID data for a selection of US cities.</p>
 <div id="data-sources" class="section level2">
 <h2>Data Sources</h2>
 <p>For each area you want to test for spatial autocorrelation you will need three main pieces of information.</p>
@@ -450,7 +450,7 @@
 </div>
 <div id="population-and-geometry" class="section level3">
 <h3>Population and Geometry</h3>
-<p>Finding population and case data was easy thanks to the publicly available Census API and the tidycensus R package. The <a href="https://www.census.gov/data/developers/guidance/api-user-guide.html">Census API</a> is pretty amazing, with thousands of different statistics available at multiple geographic levels. To make things easier, the <a href="https://github.com/walkerke/tidycensus">tidycensus</a> package is a convenient wrapper for this API that makes pulling data a breeze. Tidycensus can automatically pull the geometry of the area boundaries your statistics represent for easy plotting and analysis. Adding the geometry to the returned data converts it to an sf object that can be easily visualized using ggplot2. Here is all the code you need to create a heatmap of household income in the US by county.</p>
+<p>Finding population and case data was easy thanks to the publicly available Census API and the <code>tidycensus</code> R package. The <a href="https://www.census.gov/data/developers/guidance/api-user-guide.html">Census API</a> is pretty amazing, with thousands of different statistics available at multiple geographic levels. To make things easier, the <a href="https://github.com/walkerke/tidycensus"><code>tidycensus</code></a> package is a convenient wrapper for this API that makes pulling data a breeze. <code>Tidycensus</code> can automatically pull the geometry of the area your statistics represent for plotting and analysis. Adding the geometry to the returned data converts it to an <code>sf</code> object that can be easily visualized using <code>ggplot2</code>. Here is all the code you need to create a heatmap of household income in the US by county.</p>
 <pre class="r"><code>us_county_income &lt;- get_acs(geography = &quot;county&quot;, variables = &quot;B19013_001&quot;, 
                             shift_geo = TRUE, geometry = TRUE)
 
@@ -460,7 +460,7 @@ ggplot(us_county_income) +
   theme_minimal() + 
   scale_fill_viridis_c()</code></pre>
 <p><img src="../../post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/income-1.png" width="672" style="display: block; margin: auto;" /></p>
-<p>For our anaylsis I pulled the total population of each zipcode in the US, with its geometry, and did an inner join with my COVID datasets. I end up with a seperate sf object for Philadelpia, San Francisco, and Chicago.</p>
+<p>For our anaylsis I pulled the total population of each zipcode in the US, with its geometry, and did an inner join with my COVID datasets. I end up with a seperate <code>sf</code> object for Philadelpia, San Francisco, and Chicago.</p>
 <pre class="r"><code>head(phila_covid_sf)</code></pre>
 <pre><code>## Simple feature collection with 6 features and 4 fields
 ## geometry type:  MULTIPOLYGON
@@ -481,53 +481,83 @@ ggplot(us_county_income) +
 </div>
 <div id="morans-i" class="section level2">
 <h2>Moran’s I</h2>
-<p>knitr::include_graphics(here::here(“static”,“data”,“COVID_spatial”,“moran_I.png”))</p>
-<p><img src="img/covid_spatial/moran_I.png" style="display: block; margin: auto;" /></p>
-<p><img src="img/covid_spatial/moran_I.png" style="width:120.0%;height:120.0%" /></p>
+<p>A Moran’s I test results in a p-value, Moran’s I index, and z-score that can be interpreted as follows:
+<br></p>
+<table>
+<colgroup>
+<col width="26%" />
+<col width="73%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Moran’s I Output</th>
+<th>Interpretation</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>The p-value is not statistically significant</td>
+<td>You cannot reject the null hypothesis. It is quite possible that the spatial distribution of feature values is the result of random spatial processes. The observed spatial pattern of feature values could very well be one of many, many possible version of complete spatial randomness.</td>
+</tr>
+<tr class="even">
+<td>The p-value is statistically significant, and the z-score/Moran’s I index is positive.</td>
+<td>You may reject the null hypothesis. The spatial distribution of high values and/or low values in the dataset is more spatially clustered than would be expected if underlying spatial processes were random.</td>
+</tr>
+<tr class="odd">
+<td>The p-value is statistically significant, and the z-score/Moran’s I index is negative</td>
+<td>You may reject the null hypothesis. The spatial distribution of high values and/or low values in the dataset is more spatially dispersed than would be expected if underlying spatial processes were random. A dispersed spatial pattern often reflects some type of competative process- a feature with a high value repels other features of high values; similarly, a feature with low value repels other features with low values.</td>
+</tr>
+</tbody>
+</table>
+<p>Furthermore there is a global and local version of the Moran’s I test. A global Moran’s I test produces one set of test statistics that indicates the level of clustering and dispersion in the data as a whole. A local Moran’s I test will produce a set of test statistics for each area grouping specified in the dataset (in this case zip codes) that tell you whether the measurement feature is statistically higher or lower in that area.</p>
 </div>
 <div id="philadelphia-example" class="section level2">
 <h2>Philadelphia Example</h2>
-<pre class="r"><code>phila_covid_sf %&gt;%
-  ggplot() +
-  geom_sf(aes(fill = cases_per_cap), color = NA) +
-  coord_sf(datum = NA) +
-  theme_minimal() +
-  scale_fill_viridis_c(name = &quot;Cases Per 1000&quot;) +
-  labs(title = &quot;Philadelphia COVID-19 Cases Per Capita&quot;)</code></pre>
+<p>I will start with looking at COVID case numbers in Philadelphia. Combining population and zipcode shapefiles from the Census API with COIVD totals scraped from the city’s data portal allows us to create the following cloropleth.</p>
 <p><img src="../../post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/phila_geo-1.png" width="672" style="display: block; margin: auto;" /></p>
+<p><br></p>
+<p>Based on this graph, would you say there is significant COVID outbreak clusters within Philadelphia? The brightest yellow zipcode certainly looks like a hot spot but is the difference statistically significant? Cloropleth maps such as this are extremely popular, and often showcased by healthcare organizations I work with as examples of their BI capabilities. These visuals look beautiful, but drawing conclusions from them with the naked eye can be difficult or, in some cases, downright deceiving. We can take the guesswork out of interpreting a visual like this with Moran’s I.</p>
+<div id="global-morans-i" class="section level3">
+<h3>Global Moran’s I</h3>
+<p>We will use the <a href="https://github.com/r-spatial/spdep"><code>spdep</code></a> package in R to help perform the Moran’s I test. I prefer working with <code>sf</code> objects in R, which is a newer way to store spatial data-structures that adheres to tidy principals, but in order or take advantage of the robust spatial tests available in <code>spdep</code> we must use <code>sp</code> objects instead. To perform these tests I will convert my <code>sf</code> objects to <code>sp</code>, then tidy the results on the back end using the <code>broom</code> package.</p>
+<p>In order to calculate Moran’s I the spdep function needs to know which zipcodes are close to or far away from each other. Feeding an <code>sp</code> object to the <code>poly2nb()</code> function will build a neighbors list based on regions sharing the same boundary. Below visually shows the relationships this function is producing.</p>
 <pre class="r"><code>library(spdep)
 
-## Autocorrelation tests for phila
+## convert philly sf object to sp
 phila_sp &lt;- as(phila_covid_sf, &quot;Spatial&quot;)
+
+## Create list of neighbors
 phila_nb &lt;- poly2nb(phila_sp, queen = T, row.names = phila_sp$zip)
 coords &lt;- coordinates(phila_sp)
 
+##Visualize neighbor relationships
 plot(phila_sp)
 plot(phila_nb, coords = coords, add = T, col = &quot;#F78764&quot;)</code></pre>
 <p><img src="../../post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/phila_queen-1.png" width="672" style="display: block; margin: auto;" /></p>
+<p>We are now ready to perform the Moran’s I test for spatial autocorrelation. I utilize the <code>EBImoran.mc()</code> function since we are working about COVID rates based on the population of a specific zipcode. This function also automatically performs Monte Carlo simulations for us to compare our observed test statistic against. We are required to add the number of COVID cases and population for a zipcode, as well ad a listw object which a weighted list representing the neighborhood relationships we calculated earlier.</p>
 <pre class="r"><code>## EBI Morans I
 set.seed(1988)
 phila_moran_mc &lt;- EBImoran.mc(n = phila_sp$cases, 
                               x = phila_sp$pop, 
-                              listw = nb2listw(phila_nb, style = &quot;W&quot;),
-                              nsim = 9999)
-
-phila_moran_mc</code></pre>
-<pre><code>## 
-##  Monte-Carlo simulation of Empirical Bayes Index (mean subtracted)
-## 
-## data:  cases: phila_sp$cases, risk population: phila_sp$pop
-## weights: nb2listw(phila_nb, style = &quot;W&quot;)
-## number of simulations + 1: 10000
-## 
-## statistic = 0.16173, observed rank = 9711, p-value = 0.0289
-## alternative hypothesis: greater</code></pre>
-<pre class="r"><code>plot(phila_moran_mc)</code></pre>
-<p><img src="../../post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/phila_mgl-1.png" width="672" style="display: block; margin: auto;" /></p>
-<pre class="r"><code>phila_lc_moran &lt;- localmoran(phila_sp$cases_per_cap, 
-                             listw = nb2listw(phila_nb, style = &quot;W&quot;), 
+                              ## convert neighbors list to a listw object
+                              listw = nb2listw(phila_nb, style = &quot;W&quot;), 
+                              nsim = 9999)</code></pre>
+<p>The tidied output of our test shows a significant p-value of .0289 and positive Moran’s I test statistic of .162. This indicates that there is significant clustering of COVID cases in Philadelphia based on the COVID data we have. A density plot of the Monte Carlo permutation outcomes futher demonstrates how likely our observed test statistic is.</p>
+<pre><code>## # A tibble: 1 x 5
+##   statistic p.value parameter method                            alternative
+##       &lt;dbl&gt;   &lt;dbl&gt;     &lt;dbl&gt; &lt;chr&gt;                             &lt;chr&gt;      
+## 1     0.162  0.0289      9711 Monte-Carlo simulation of Empiri… greater</code></pre>
+<p><img src="../../post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/phila_mgl2-1.png" width="672" style="display: block; margin: auto;" /></p>
+</div>
+<div id="local-morans-i" class="section level3">
+<h3>Local Moran’s I</h3>
+<p>Now that we know there is COVID clustering in Philadelphia, lets run a Local Moran’s I test to further investigate. The local version of this test operates much the same as our previous example, except more work is needed to tidy the output since we are generating a greater number of test statistics. There is no “EBI” version of the Local Moran’s test so I fed the COVID per capita rates directly to the <code>localmoran()</code> function.</p>
+<pre class="r"><code>phila_lc_moran &lt;- localmoran(phila_sp$cases_per_cap,
+                              ## listw object of neighbors list
+                             listw = nb2listw(phila_nb, style = &quot;W&quot;),
                              p.adjust.method = &quot;bonferroni&quot;,
                              alternative = &quot;two.sided&quot;)
+
 
 phila_lc_moran_tidy &lt;- broom::tidy(phila_lc_moran) %&gt;%
   rename(p_value = 6 ,zip = .rownames, morans_i = 2, z_score = 5) %&gt;%
@@ -538,6 +568,7 @@ phila_lc_moran_tidy &lt;- broom::tidy(phila_lc_moran) %&gt;%
          lag_cases_per_cap = round(lag.listw(var = phila_sp$cases_per_cap, x =  nb2listw(phila_nb, style = &quot;W&quot;)),3),
          lag_mean = round(mean(lag.listw(var = phila_sp$cases_per_cap, x =  nb2listw(phila_nb, style = &quot;W&quot;))),3)
          )</code></pre>
+<p>First 6 results from our Local Moran’s test</p>
 <pre class="r"><code>head(phila_lc_moran_tidy)</code></pre>
 <pre><code>## # A tibble: 6 x 6
 ##   zip   morans_i z_score p_value lag_cases_per_cap lag_mean
@@ -548,14 +579,49 @@ phila_lc_moran_tidy &lt;- broom::tidy(phila_lc_moran) %&gt;%
 ## 4 19123   -0.717  -2.08    0.303              7.88     10.7
 ## 5 19126    0.838   1.61    0.429             11.6      10.7
 ## 6 19138    0.282   0.752   1                 15.7      10.7</code></pre>
+<p>There is a built in <code>moran.plot</code> function in <code>spdep</code> to visualize how our zipcodes compare to each other. This plots a zipcode’s COVID cases per capita against the weighted per capita rates of the zipcodes around it. The zipcodes that are highlighted are those that deviate the most from other zipcodes in terms of COVID rates.</p>
 <p><img src="../../post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/phila_mlc_plot-1.png" width="672" style="display: block; margin: auto;" /></p>
+<p>When tidying our test output I calculated the spatially lagged cases per capita (aka weighted cases per capita of neighboring zipcodes) for each zipcode and the mean spatially lagged cases per capita of all zipcodes. We can use these values to determine if a zipcode falls within one of the below categories:</p>
+<ul>
+<li><strong>Low-Low</strong> - The area has a low number of cases and is surrounded by other areas with low case totals.</li>
+<li><strong>Low-High</strong> - The area has a low number of cases and is surrounded by other areas with high case totals.</li>
+<li><strong>High-Low</strong> - The area has a high number of cases and is surrounded by other areas with low case totals.</li>
+<li><strong>High-High</strong> - The are has a high number of cases and is surrounded by other areas with high case totals.</li>
+</ul>
+<p>Here is my visualization staging code that combined the Local Moran’s I results to the Philadelphia <code>sf</code> object and calculates which category a zipcode falls into.</p>
+<pre class="r"><code>phila_morans_stage &lt;- phila_covid_sf %&gt;%
+  inner_join(phila_lc_moran_tidy, by = c(&quot;zip&quot;=&quot;zip&quot;)) %&gt;%
+  mutate(quad = case_when(
+           cases_per_cap &lt; lag_mean &amp; lag_cases_per_cap &lt; lag_mean ~ &quot;Low-Low&quot;,
+           cases_per_cap &lt; lag_mean &amp; lag_cases_per_cap &gt;= lag_mean ~ &quot;Low-High&quot;,
+           cases_per_cap &gt;= lag_mean &amp; lag_cases_per_cap &lt; lag_mean ~ &quot;High-Low&quot;,
+           cases_per_cap &gt;= lag_mean &amp; lag_cases_per_cap &gt;= lag_mean ~ &quot;High-High&quot;
+         ))</code></pre>
+<p>The below graph shows Philadelphia and the zipcodes with a significant result from Local Moran’s I. I used a high p-value to demonstrate how a visualization would look utilizing the different color coded categories we discussed. This allows us to quickly see the zipcodes with significant p-values and how they compare to their neighbors.</p>
 <p><img src="../../post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/phila_mlc_plot_sf-1.png" width="672" style="display: block; margin: auto;" /></p>
 </div>
-<div id="functional-programming-to-test-many-locations" class="section level2">
-<h2>Functional Programming to Test Many Locations</h2>
+</div>
+<div id="functional-programming-for-many-locations" class="section level2">
+<h2>Functional Programming For Many Locations</h2>
+<p>If you can run an analysis once, then you can create functions and utilize <code>purrr</code> to run it many times. I decided to pull data from 3 different cities, Chicago, Philadelphia, and San Francisco, and run the same analysis above on all of them. My code for automating this process for many different locations can be found at the bottom.</p>
+<p>Here are the popular cloropleth graphs for each location showing the COVID cases per capita of zipcodes. Which city has the most clustering of COVID cases? Let’s find out!</p>
 <p><img src="../../post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/covid_plot-1.png" width="672" style="display: block; margin: auto;" /><img src="../../post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/covid_plot-2.png" width="672" style="display: block; margin: auto;" /><img src="../../post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/covid_plot-3.png" width="672" style="display: block; margin: auto;" /></p>
+<p>Our Global Moran’s I test results show all cities have significant clustering of COVID cases. Chicago takes the crown as having the most statistically significant clustering with San Francisco being a close second.</p>
+<pre><code>## # A tibble: 3 x 6
+##   city     statistic p.value parameter method                   alternative
+##   &lt;chr&gt;        &lt;dbl&gt;   &lt;dbl&gt;     &lt;dbl&gt; &lt;chr&gt;                    &lt;chr&gt;      
+## 1 San Fra…     0.494  0.0005      9995 Monte-Carlo simulation … greater    
+## 2 Philade…     0.162  0.0297      9703 Monte-Carlo simulation … greater    
+## 3 Chicago      0.473  0.0001     10000 Monte-Carlo simulation … greater</code></pre>
 <p><img src="../../post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/morans_gl-1.png" width="672" style="display: block; margin: auto;" /><img src="../../post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/morans_gl-2.png" width="672" style="display: block; margin: auto;" /><img src="../../post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/morans_gl-3.png" width="672" style="display: block; margin: auto;" /></p>
+<p>Our Local Moran plots show that San Francisco’s clustering mostly consists of high COVID density areas surrounding each other on the East side of the city. Philadelphia’s only significant clustering is a zipcode with an unusually low number of cases on the West side of the city. Chicago is the tale of two cities, with the lakefront downtown area having a significant clustering of low COVID zipcodes and the West side seeing high clustered zipcodes.</p>
 <p><img src="../../post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/morans_local-1.png" width="672" style="display: block; margin: auto;" /><img src="../../post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/morans_local-2.png" width="672" style="display: block; margin: auto;" /><img src="../../post/2020-05-08-spatial-autocorrelation-tests-for-covid-19_files/figure-html/morans_local-3.png" width="672" style="display: block; margin: auto;" /></p>
+</div>
+<div id="caveats-and-considerations" class="section level2">
+<h2>Caveats and Considerations</h2>
+<p>Moran’s I is a great way to statistically prove clustering or dispersion of a spatial features that the naked eye might not find. However, there are major caveats and considerations when performing such a test. In the COVID case, the number of tests being performed in each zipcode obviously will have an affect on outcomes. In a perfect analysis we would have appropriate sampling from each zipcode to help validate our results. Also, the areas that you wish to compare will affect outcomes. Zipcodes are not standard shapes or sizes that perfectly divide a city based on population. Both of these factors need to be taken into consideration when performing and interpreting a Moran’s I test.</p>
+<div id="funcational-code" class="section level3">
+<h3>Funcational Code</h3>
 <pre class="r"><code>##Functional Programming version
 
 
@@ -592,12 +658,11 @@ broom::tidy(lm) %&gt;%
     inner_join(sf, by = c(&quot;zip&quot;=&quot;zip&quot;)) %&gt;%
     mutate(lag_cases_per_cap = spdep::lag.listw(var = sp$cases_per_cap, x = spdep::nb2listw(spdep::poly2nb(sp,queen = T))),
            lag_mean = mean(lag_cases_per_cap),
-           cases_mean = mean(lag_cases_per_cap),
            quad = case_when(
-             cases_per_cap &lt; cases_mean &amp; lag_cases_per_cap &lt; lag_mean ~ &quot;Low-Low&quot;,
-             cases_per_cap &lt; cases_mean &amp; lag_cases_per_cap &gt;= lag_mean ~ &quot;Low-High&quot;,
-             cases_per_cap &gt;= cases_mean &amp; lag_cases_per_cap &lt; lag_mean ~ &quot;High-Low&quot;,
-             cases_per_cap &gt;= cases_mean &amp; lag_cases_per_cap &gt;= lag_mean ~ &quot;High-High&quot;
+             cases_per_cap &lt; lag_mean &amp; lag_cases_per_cap &lt; lag_mean ~ &quot;Low-Low&quot;,
+             cases_per_cap &lt; lag_mean &amp; lag_cases_per_cap &gt;= lag_mean ~ &quot;Low-High&quot;,
+             cases_per_cap &gt;= lag_mean &amp; lag_cases_per_cap &lt; lag_mean ~ &quot;High-Low&quot;,
+             cases_per_cap &gt;= lag_mean &amp; lag_cases_per_cap &gt;= lag_mean ~ &quot;High-High&quot;
            ))
 
   
@@ -644,6 +709,7 @@ morans_results &lt;- covid_tibble %&gt;%
     local_morans_tidied = pmap(list(local_morans, covid_sp, covid_sf), local_morans_tidy),    ##tidy the local morans I output
     local_morans_plots = map2(local_morans_tidied,location,local_morans_plots)    ##Create output plots
          )</code></pre>
+</div>
 </div>
 
     </div>
